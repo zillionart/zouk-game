@@ -24,6 +24,8 @@ app = FastAPI(lifespan=lifespan)
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+templates.env.globals["now"] = datetime.now
+
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 @app.get("/", response_class=HTMLResponse)
