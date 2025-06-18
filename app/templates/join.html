@@ -1,9 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <h2 class="text-xl text-green-600 my-2">Join the Game</h2>
-<form method="post" hx-post="/join" hx-target="#result">
-    <input type="text" name="name" placeholder="Your Name" class="border p-2 m-2"/>
-    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Join</button>
+<form method="post" action="/join" class="mt-4 space-y-2">
+  <input name="name" type="text" placeholder="Enter your name"
+         class="border px-3 py-2 rounded w-full text-center" required />
+  <button type="submit"
+          class="bg-blue-600 text-white px-4 py-2 rounded w-full">
+    Join Game
+  </button>
 </form>
 <div id="result" class="mt-4"></div>
 {% endblock %}
