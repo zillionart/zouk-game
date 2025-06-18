@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.env.*
+
+# SQLite
+*.sqlite3
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Node/Tailwind (if using local CLI build)
+node_modules/
+public/build/
+
+# VSCode / IDEs
+.vscode/
+.code-workspace
+
+# Deployment artifacts
+*.log
+*.pid
+*.gz
+*.zip
+*.tar
+deploy.sh.bak
