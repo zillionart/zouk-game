@@ -18,15 +18,16 @@ HTMX + Tailwind: You’ll use Jinja2 to embed dynamic content into static-lookin
 FastAPI supports async endpoints, and aiosqlite lets you perform DB operations without blocking the server
 Used in: db.py or wherever we save player data, bids, scores
 
-
 Installation:
 Run the following command in the project directory
 `pip install -r requirements.txt`
 
-
-
 Usages: Development Flow
 🔄 Dev Workflow Boosters
+
 1. Auto-reload on file change
-Run uvicorn like this:
-    `uvicorn app.main:app --reload`
+   Run uvicorn like this:
+   `uvicorn app.main:app --host 0.0.0.0 --port 000 --reload` Change to your local IP and port numbers
+
+2. Use SQLite Viewer standalone app for db administration
+   https://beta.sqliteviewer.app/

@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-xl text-green-600 my-2">Join the Game</h2>
-<form method="post" action="/join" class="mt-4 space-y-2">
-  <input name="name" type="text" placeholder="Enter your name"
-         class="border px-3 py-2 rounded w-full text-center" required />
-  <button type="submit"
-          class="bg-blue-600 text-white px-4 py-2 rounded w-full">
-    Join Game
-  </button>
-</form>
-<div id="result" class="mt-4"></div>
+<div class="flex flex-col items-center justify-center mt-10">
+  <h2 class="text-xl font-semibold mb-4">Join the Zouk game</h2>
+  <form action="/join" method="post" class="space-y-4 w-full max-w-sm">
+    <input type="text" name="name" placeholder="Enter your nickname" required
+           class="w-full px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+    <button type="submit"
+            class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700">
+      Join Game
+    </button>
+  </form>
+</div>
 {% endblock %}

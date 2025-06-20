@@ -1,30 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
+<body class="flex flex-col min-h-screen bg-gray-100">
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zouk Game</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-gray-100 text-gray-900">
-    <main class="max-w-md mx-auto p-4 min-h-screen bg-white shadow-md rounded">
-        <header class="text-center mb-6">
-            <h1 class="text-2xl font-bold">🃏 Zouk Game</h1>
-            <nav class="mt-2">
-                <a href="/" class="text-blue-600 hover:underline mr-3">Home</a>
-                <a href="/join" class="text-blue-600 hover:underline">Join</a>
-            </nav>
-        </header>
-
-        {% block content %}
-        {% endblock %}
-
-        <footer class="text-center mt-10 text-sm text-gray-500">
-            © {{ now().year }} Zouk Game
-        </footer>
+    <!-- Header -->
+    <header class="text-center p-4">
+      <h1 class="text-2xl font-bold">🃏 Let's Zouk!</h1>
+      <nav class="mt-2">
+        <a href="/" class="text-blue-600 hover:underline mr-3">Home</a>
+        <a href="/join" class="text-blue-600 hover:underline">Join</a>
+      </nav>
+    </header>
+  
+    <!-- Main Content -->
+    <main class="flex-grow flex justify-center items-start px-4">
+      <div class="w-full max-w-md p-6 bg-white shadow-md rounded text-center">
+        {% block content %}{% endblock %}
+      </div>
     </main>
-</body>
-
-</html>
+  
+    <!-- Footer -->
+    <footer class="text-xs text-gray-500 text-center py-4">
+      &copy; 2025 Zouk Game Companion App for lilaloka. Coded over coffee by Ravi.
+    </footer>
+  
+  </body>
+  
