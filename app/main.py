@@ -148,8 +148,15 @@ async def host_panel(request: Request):
         conn.row_factory = aiosqlite.Row
         cur = await conn.execute("SELECT id, round_number FROM game ORDER BY created_at DESC LIMIT 1")
         game = await cur.fetchone()
+
         if not game:
-            return HTMLResponse("No active game found", status_code=404)
+            return templates.TemplateResponse("host.html", {
+                "request": request,
+                "players": [],
+                "round_number": None,
+                "no_game": True,
+                "current_page": "host"
+            })
 
         game_id = game["id"]
         round_number = game["round_number"]
@@ -199,6 +206,14 @@ async def reorder_players(request: Request):
 async def remove_player(player_id: int = Form(...)):
     async with aiosqlite.connect(db.DB_PATH) as conn:
         await conn.execute("DELETE FROM players WHERE id = ?", (player_id,))
+        await conn.commit()
+    return RedirectResponse(url="/host", status_code=302)
+
+@app.post("/game/new")
+async def create_new_game():
+    game_id = "zouk-" + datetime.now().strftime("%H%M%S")
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        await conn.execute("INSERT INTO game (id, round_number) VALUES (?, ?)", (game_id, 1))
         await conn.commit()
     return RedirectResponse(url="/host", status_code=302)
 
