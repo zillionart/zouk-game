@@ -122,7 +122,7 @@ async def remove_player(player_id: int = Form(...)):
         await conn.commit()
     return RedirectResponse(url="/host", status_code=302)
 
-@app.get("/game/start")
+@app.post("/game/start")
 async def begin_game():
     async with aiosqlite.connect(db.DB_PATH) as conn:
         conn.row_factory = aiosqlite.Row
@@ -137,13 +137,23 @@ async def begin_game():
         round_count = game["round_number"]
 
         # Get players ordered by playing order
-        cur = await conn.execute("SELECT id FROM players WHERE game_id = ? ORDER BY seat_number ASC", (game_id,))
+        cur = await conn.execute("SELECT id, seat_number FROM players WHERE game_id = ? ORDER BY seat_number ASC", (game_id,))
         players = await cur.fetchall()
         if not players:
             return HTMLResponse("No players found for this game", status_code=400)
 
         starter_index = round_count % len(players)
-        starter_id = players[starter_index]["id"]
+        starter_id = players[starter_index]["seat_number"]
+
+        # Initiate the first round 
+        await conn.execute(
+            """
+            INSERT INTO rounds (game_id, round_number, starter_player_id)
+            VALUES (?, ?, ?)
+            """,
+            (game_id, round_count, starter_id),
+        )
+        await conn.commit()
 
     return RedirectResponse(url="/bids", status_code=302)
 
