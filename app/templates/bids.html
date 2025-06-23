@@ -3,7 +3,7 @@
 
 <h2 class="text-lg font-semibold mb-4">🎯 Round {{ round_number }}</h2>
 
-<form method="post" action="/bids">
+<form method="post" action="/bids" id="bid2win">
     <table class="table-auto w-full mb-6">
         <thead>
             <tr class="bg-gray-200">
@@ -23,7 +23,9 @@
                     <input type="number" name="bid_{{ player.id }}" min="0" max="{{ round_number }}"
                         class="border rounded w-16 text-center bid-input" required>
                     {% if loop.last %}
-                    <div class="text-xs text-gray-500 mt-1">Sum of all bids ≠ {{ round_number }}</div>
+                    <div id="bid-warning" class="text-xs text-gray-500 mt-1">
+                        Sum of all bids ≠ {{ round_number }}
+                    </div>
                     {% endif %}
                     {% else %}
                     {{ player.bid }}
@@ -46,5 +48,96 @@
     </button>
 </form>
 
+<script>
+    const roundStatus = "{{ round_status }}";
+    const roundNumber = parseInt("{{ round_number }}");
+
+    if (roundStatus === "START") {
+        const bidInputs = document.querySelectorAll('.bid-input');
+        const warning = document.getElementById("bid-warning");
+
+        function updateBidWarning() {
+            let sum = 0;
+            let filledCount = 0;
+            let emptyInputIndex = -1;
+
+            bidInputs.forEach((input, idx) => {
+                const val = parseInt(input.value || "");
+                if (!isNaN(val)) {
+                    sum += val;
+                    filledCount++;
+                } else {
+                    emptyInputIndex = idx;
+                }
+            });
+
+            if (filledCount === bidInputs.length) {
+                if (sum === roundNumber) {
+                    warning.textContent = `⚠️ Total bids add up to ${sum}, which is NOT allowed. Please adjust last player's bid.`;
+                    warning.classList.remove("text-green-600");
+                    warning.classList.add("text-red-600", "font-semibold");
+                } else {
+                    warning.textContent = `✅ Bids total ${sum}. Valid bid.`;
+                    warning.classList.remove("text-red-600", "font-semibold");
+                    warning.classList.add("text-green-600");
+                }
+            } else if (filledCount === bidInputs.length - 1) {
+                const disallowed = Math.min(roundNumber, Math.max(0, roundNumber - sum));
+
+                if (disallowed >= 0 && disallowed <= roundNumber) {
+                    warning.textContent = `🎯 Last player cannot bid ${disallowed} in this round. Pick any other number between 0 and ${roundNumber}.`;
+                    warning.classList.remove("text-green-600");
+                    warning.classList.add("text-yellow-600", "font-semibold");
+                } else {
+                    warning.textContent = `✅ Any value between 0 and ${roundNumber} is allowed for the last player.`;
+                    warning.classList.remove("text-red-600", "text-yellow-600", "font-semibold");
+                    warning.classList.add("text-green-600");
+                }
+            } else {
+                warning.textContent = `ℹ️ Current sum of bids is ${sum}.`;
+                warning.classList.remove("text-red-600", "text-yellow-600", "font-semibold");
+                warning.classList.add("text-gray-500");
+            }
+        }
+
+        bidInputs.forEach(input => {
+            input.addEventListener("input", updateBidWarning);
+        });
+
+        updateBidWarning(); // call on page load
+    }
+
+    // Existing form validation
+    document.getElementById("bid2win").addEventListener("submit", function (e) {
+        if (roundStatus === "FINISH") {
+            const wonInputs = document.querySelectorAll('input[name^="won_"]');
+            let totalWon = 0;
+            let isValid = true;
+
+            wonInputs.forEach(input => {
+                const val = parseInt(input.value || "0");
+                if (val < 0 || val > roundNumber) {
+                    alert(`Winning value must be between 0 and ${roundNumber}.`);
+                    input.focus();
+                    isValid = false;
+                    e.preventDefault();
+                    return;
+                }
+                totalWon += val;
+            });
+
+            if (totalWon > roundNumber) {
+                alert(`Total number of hands won (${totalWon}) cannot exceed the number of cards in this round (${roundNumber}).`);
+                e.preventDefault();
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        }
+    });
+</script>
+
+    
 
 {% endblock %}
