@@ -1,59 +1,61 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-lg font-semibold mb-4">🎯 Round {{ round_number }} Scores</h2>
-<form method="post" action="/score/round">
-    <table class="table-auto w-full border">
-        <thead>
-            <tr class="bg-gray-200">
-                <th class="px-2 py-1 border">#</th>
-                <th class="px-2 py-1 border">Player</th>
-                <th class="px-2 py-1 border">Score</th>
-                <th class="px-2 py-1 border">Bid</th>
-                <th class="px-2 py-1 border">Won</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for player in players %}
-            <tr>
-                <td class="border text-center">{{ loop.index }}</td>
-                <td class="border text-left px-2">
-                    {{ player.name }}
-                    {% if player.is_top %}
-                    🏅
-                    {% elif player.is_bottom %}
-                    🪫
-                    {% endif %}
-                </td>
-                <td class="border text-center">{{ player.cumulative_score }}</td>
-                <td class="border text-center">
-                    {% if mode == "bid" %}
-                    <input type="number" name="bid_{{ player.id }}" min="0" class="w-16 text-center border rounded"
-                        required>
-                    {% else %}
-                    {{ player.bid }}
-                    {% endif %}
-                </td>
-                <td class="border text-center">
-                    {% if mode == "won" %}
-                    <input type="number" name="won_{{ player.id }}" min="0" class="w-16 text-center border rounded"
-                        required>
-                    {% else %}
-                    —
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <input type="hidden" name="game_id" value="{{ players[0].game_id }}">
-    <div class="mt-4">
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
-            {% if mode == "bid" %}
-            Submit Bids
-            {% else %}
-            Submit Results
+
+<h2 class="text-2xl font-bold text-center mb-6">🏆 Leaderboard</h2>
+<style>
+    .fade-in {
+      animation: fadeIn 1s ease-in-out;
+    }
+  
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+
+<div class="space-y-4 fade-in">
+    {% for player in scores %}
+    <div class="bg-white shadow-md rounded-xl p-4 flex items-center justify-between border-2 
+    {% if loop.index0 == 0 %}
+        border-yellow-400
+    {% elif loop.index0 == scores|length - 1 %}
+        border-red-400
+    {% else %}
+        border-gray-200
+    {% endif %}">
+
+        <div class="flex items-center space-x-4">
+            <div class="text-xl font-semibold text-gray-700">
+                {{ loop.index }}. {{ player.name }}
+                {% if loop.index0 == 0 %}<span class="ml-2">👑</span>{% endif %}
+            </div>
+        </div>
+        <div class="text-right">
+            <div class="text-2xl font-bold text-green-700">{{ player.total_score }}</div>
+            {% if player.bid is not none and player.won is not none %}
+            <div class="text-sm text-gray-500">Bid: {{ player.bid }} | Won: {{ player.won }}</div>
             {% endif %}
-        </button>
+        </div>
     </div>
-</form>
+    {% endfor %}
+</div>
+
+<script>
+    setInterval(() => {
+      const content = document.querySelector('.fade-in');
+      if (content) {
+        content.classList.remove('fade-in');
+        void content.offsetWidth; // Trigger reflow
+        content.classList.add('fade-in');
+      }
+      location.reload();
+    }, 80000); // Refresh every 8 seconds
+  </script>
+
 {% endblock %}
