@@ -392,6 +392,7 @@ async def show_scores(request: Request):
         if not game:
             return HTMLResponse("No active game found", status_code=404)
         game_id = game["id"]
+        game_started = game["game_started"]
 
         # Get all players
         cur = await conn.execute("SELECT id, name, seat_number FROM players WHERE game_id = ?", (game_id,))
@@ -423,6 +424,7 @@ async def show_scores(request: Request):
     return templates.TemplateResponse("scores.html", {
         "request": request,
         "scores": scores,
+        "game_started": game_started,
         "current_page": "scores"
     })
 
