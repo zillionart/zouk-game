@@ -51,11 +51,9 @@
         input.addEventListener('blur', () => {
             const total = Array.from(document.querySelectorAll('.bid-input'))
                 .map(el => parseInt(el.value || 0)).reduce((a, b) => a + b, 0);
-            if (total === {{ round_number }
-        }) {
-            alert("Sum of all bids must NOT equal {{ round_number }}");
-        }
-    });
+            if (total === Number({{round_number}}) 
+                alert("Sum of all bids must NOT equal {{ round_number }}");
+            });
   });
 </script>
 
