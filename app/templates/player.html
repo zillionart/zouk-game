@@ -1,6 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="text-lg font-semibold mb-4">🎮 Welcome, {{ player.name }}!</h2>
-<p class="text-sm">You are seated at position #{{ player.seat_number }}.</p>
-<p class="mt-4 text-gray-600">Waiting for the game to start...</p>
+
+<div class="max-w-md mx-auto bg-white shadow-lg rounded-xl p-6 space-y-4 mt-6 text-center">
+    <h2 class="text-2xl font-bold text-indigo-700">👋 Welcome, {{ name }}!</h2>
+
+    <div class="text-lg font-medium text-gray-600">
+        🎯 Round {{ round_number }}
+    </div>
+
+    <div class="text-xl">
+        <span class="font-semibold text-green-700">Score:</span> {{ score }}
+    </div>
+
+    <div class="text-lg">
+        <span class="font-semibold text-blue-700">Rank:</span> {{ rank }}
+    </div>
+
+    {% if last_bid is not none %}
+    <div class="text-gray-600">
+        Last Round ➜ Bid: <strong>{{ last_bid }}</strong>, Won: <strong>{{ last_won }}</strong>
+    </div>
+    {% endif %}
+
+    <div class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-medium">
+        Suggested Bid: <span class="font-semibold">{{ suggested_bid }}</span>
+    </div>
+
+    {% if hint %}
+    <div class="text-red-600 font-semibold">
+        ⚠️ {{ hint }}
+    </div>
+    {% endif %}
+</div>
+
 {% endblock %}
