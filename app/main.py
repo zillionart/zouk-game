@@ -1,9 +1,12 @@
 import os
+import base64
+import qrcode
 import signal
 import asyncio
 import pathlib
 import aiosqlite
 from app import db
+from io import BytesIO
 from typing import List
 from datetime import datetime
 from fastapi import FastAPI, Request, Form
@@ -394,6 +397,14 @@ async def show_scores(request: Request):
         game_id = game["id"]
         game_started = game["game_started"]
 
+        qr_image_base64 = None
+        if game_started == 0:
+            join_url = str(request.base_url) + "join"
+            img = qrcode.make(join_url)
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            qr_image_base64 = base64.b64encode(buffer.getvalue()).decode()
+
         # Get all players
         cur = await conn.execute("SELECT id, name, seat_number FROM players WHERE game_id = ?", (game_id,))
         players = await cur.fetchall()
@@ -425,6 +436,7 @@ async def show_scores(request: Request):
         "request": request,
         "scores": scores,
         "game_started": game_started,
+        "qr_image_base64": qr_image_base64,
         "current_page": "scores"
     })
 
