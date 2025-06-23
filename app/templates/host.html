@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-lg font-semibold mb-4">🧑‍✈️ Game Host Panel</h2>
+
+<ul class="space-y-2">
+    {% for player in players %}
+    <li class="flex items-center justify-between bg-gray-100 p-2 rounded">
+        <span>{{ loop.index }}. {{ player.name }}</span>
+        <div class="flex gap-2 items-center">
+            <form method="post" action="/host/reorder" style="display:inline;">
+                {% if not loop.first %}
+                <button name="move" value="up-{{ player.id }}" class="text-blue-600 text-sm">⬆️</button>
+                {% endif %}
+                {% if not loop.last %}
+                <button name="move" value="down-{{ player.id }}" class="text-blue-600 text-sm">⬇️</button>
+                {% endif %}
+            </form>
+            <form method="post" action="/player/remove" onsubmit="return confirm('Remove {{ player.name }}?')"
+                style="display:inline;">
+                <input type="hidden" name="player_id" value="{{ player.id }}">
+                <button type="submit" class="text-red-600 text-sm ml-2">🗑 Remove</button>
+            </form>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+
+<div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <form method="post" action="/host/reorder">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full">💾 Save Playing Order</button>
+    </form>
+
+    <form method="post" action="/game/start">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded w-full">🚀 Begin Game</button>
+    </form>
+
+    <form method="post" action="/reset-db">
+        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded w-full">🧨 Reset All Data</button>
+    </form>
+
+    <form method="post" action="/reset-game">
+        <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded w-full">🔁 Start New Game (Keep
+            Players)</button>
+    </form>
+</div>
+
+{% endblock %}

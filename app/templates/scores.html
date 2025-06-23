@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">🎯 Round {{ round_number }} Scores</h2>
+<form method="post" action="/score/round">
+    <table class="table-auto w-full border">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="px-2 py-1 border">#</th>
+                <th class="px-2 py-1 border">Player</th>
+                <th class="px-2 py-1 border">Score</th>
+                <th class="px-2 py-1 border">Bid</th>
+                <th class="px-2 py-1 border">Won</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in players %}
+            <tr>
+                <td class="border text-center">{{ loop.index }}</td>
+                <td class="border text-left px-2">
+                    {{ player.name }}
+                    {% if player.is_top %}
+                    🏅
+                    {% elif player.is_bottom %}
+                    🪫
+                    {% endif %}
+                </td>
+                <td class="border text-center">{{ player.cumulative_score }}</td>
+                <td class="border text-center">
+                    {% if mode == "bid" %}
+                    <input type="number" name="bid_{{ player.id }}" min="0" class="w-16 text-center border rounded"
+                        required>
+                    {% else %}
+                    {{ player.bid }}
+                    {% endif %}
+                </td>
+                <td class="border text-center">
+                    {% if mode == "won" %}
+                    <input type="number" name="won_{{ player.id }}" min="0" class="w-16 text-center border rounded"
+                        required>
+                    {% else %}
+                    —
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <input type="hidden" name="game_id" value="{{ players[0].game_id }}">
+    <div class="mt-4">
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
+            {% if mode == "bid" %}
+            Submit Bids
+            {% else %}
+            Submit Results
+            {% endif %}
+        </button>
+    </div>
+</form>
+{% endblock %}

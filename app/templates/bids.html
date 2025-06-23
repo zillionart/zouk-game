@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="text-lg font-semibold mb-4">🎯 Round {{ round_number }} Bids</h2>
+
+<form method="post" action="/bids/submit">
+    <table class="table-auto w-full mb-6">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="px-4 py-2">Player</th>
+                <th class="px-4 py-2">Bid</th>
+                {% if round_status == "FINISH" %}
+                <th class="px-4 py-2">Won</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in players %}
+            <tr class="text-center">
+                <td class="border px-4 py-2">{{ player.seat_number }}. {{ player.name }}</td>
+                <td class="border px-4 py-2">
+                    {% if round_status == "START" %}
+                    <input type="number" name="bid_{{ player.id }}" min="0" max="{{ round_number }}"
+                        class="border rounded w-16 text-center bid-input" required>
+                    {% if loop.last %}
+                    <div class="text-xs text-gray-500 mt-1">Sum of all bids ≠ {{ round_number }}</div>
+                    {% endif %}
+                    {% else %}
+                    {{ player.bid }}
+                    {% endif %}
+                </td>
+                {% if round_status == "FINISH" %}
+                <td class="border px-4 py-2">
+                    <input type="number" name="won_{{ player.id }}" min="0" max="{{ round_number }}"
+                        class="border rounded w-16 text-center" required>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <input type="hidden" name="round_id" value="{{ round_id }}">
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
+        {% if round_status == "START" %}Start Round{% else %}Close Round{% endif %}
+    </button>
+</form>
+
+<script>
+    document.querySelectorAll('.bid-input').forEach(input => {
+        input.addEventListener('blur', () => {
+            const total = Array.from(document.querySelectorAll('.bid-input'))
+                .map(el => parseInt(el.value || 0)).reduce((a, b) => a + b, 0);
+            if (total === {{ round_number }
+        }) {
+            alert("Sum of all bids must NOT equal {{ round_number }}");
+        }
+    });
+  });
+</script>
+
+{% endblock %}

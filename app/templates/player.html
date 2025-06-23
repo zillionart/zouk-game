@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="text-lg font-semibold mb-4">🎮 Welcome, {{ player.name }}!</h2>
+<p class="text-sm">You are seated at position #{{ player.seat_number }}.</p>
+<p class="mt-4 text-gray-600">Waiting for the game to start...</p>
+{% endblock %}

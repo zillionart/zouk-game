@@ -1,36 +1,79 @@
-<body class="flex flex-col min-h-screen bg-gray-100">
+<!DOCTYPE html>
+<html lang="en">
 
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Zouk Game</title>
-        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
-    </head>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zouk Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
 
-    <body
-        class="bg-gradient-to-br from-gray-50 to-gray-200 text-gray-900 min-h-screen flex items-center justify-center px-4">
-        <main class="w-full max-w-xl bg-white shadow-xl rounded-xl p-6 sm:p-8">
-            <header class="text-center mb-8">
-                <h1 class="text-3xl font-extrabold text-blue-700 tracking-wide mb-2">🃏 Zouk Game</h1>
-                <nav class="space-x-4 text-lg">
-                    <a href="/" class="text-blue-600 hover:underline">Home</a>
-                    <a href="/join" class="text-blue-600 hover:underline">Join</a>
-                </nav>
-            </header>
+<body class="flex flex-col min-h-screen bg-white text-black">
 
-            <section class="text-base sm:text-lg leading-relaxed text-center">
-                {% block content %}
-                {% endblock %}
-            </section>
+    <div class="flex flex-col min-h-screen">
 
-            <footer class="text-center mt-10 text-sm text-gray-500">
-                © {{ now().year }} Zouk Game
-            </footer>
+        <!-- Header -->
+        <header class="p-4 text-left bg-white shadow">
+            <div class="flex items-center justify-between">
+                <h1 class="text-lg font-semibold">Let's Zouk!</h1>
+
+                <!-- Mobile Menu Button -->
+                <button id="menu-toggle" class="sm:hidden text-2xl" aria-label="Toggle navigation">☰</button>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav>
+                <ul id="nav-menu"
+                    class="flex-col sm:flex-row sm:flex gap-4 justify-center p-2 bg-gray-200 hidden sm:flex">
+                    <li>
+                        <a href="/host" title="Host Panel"
+                            class="hover:underline {% if current_page == 'host' %}font-bold text-blue-600{% endif %}">
+                            Host
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/join" title="Join Game"
+                            class="hover:underline {% if current_page == 'join' %}font-bold text-blue-600{% endif %}">
+                            Join
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/game/start" title="Begin Game"
+                            class="hover:underline {% if current_page == 'rounds' %}font-bold text-blue-600{% endif %}">
+                            Play!
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/scores" title="View Leaderboard"
+                            class="hover:underline {% if current_page == 'scores' %}font-bold text-blue-600{% endif %}">
+                            Leaderboard
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow px-4 py-6">
+            {% block content %}{% endblock %}
         </main>
 
         <!-- Footer -->
-        <footer class="text-xs text-gray-500 text-center py-4">
-            &copy; 2025 Zouk Game Companion App for lilaloka. Coded over coffee by Ravi.
+        <footer class="text-xs text-center text-gray-500 py-3 border-t">
+            &copy; {{ now().year }} Zouk Game Companion App.<br />
+            Coded over coffee by Ravi.
         </footer>
 
-    </body>
+    </div>
+
+    <!-- Mobile Menu Toggle Script -->
+    <script>
+        document.getElementById('menu-toggle').addEventListener('click', function () {
+            const menu = document.getElementById('nav-menu');
+            menu.classList.toggle('hidden');
+        });
+    </script>
+
+</body>
+
+</html>
