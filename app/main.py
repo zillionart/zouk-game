@@ -125,7 +125,22 @@ async def show_player_dashboard(request: Request, player_id: int):
         last_won = latest["won"] if latest else None
 
         # Suggest bid (simple example: avoid average, here just mid value)
-        suggested_bid = max(0, round_number // 2)
+        player_count = len(leaderboard)
+        if round_number <= 2:
+            suggested_bid = 1  # too early, low risk
+        elif round_number >= 10 and rank == player_count:
+            # last player, go bold!
+            suggested_bid = round_number
+        elif rank == 1:
+            # leader plays safe
+            suggested_bid = 0
+        elif rank >= player_count - 1:
+            # trailing or 2nd last
+            suggested_bid = round_number - 1
+        else:
+            # balanced approach
+            suggested_bid = round_number // 2
+
 
         # Suggestion message
         hint = ""
