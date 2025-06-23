@@ -1,4 +1,4 @@
-qrcode
+qrcode[pil]
 jinja2
 fastapi
 uvicorn
