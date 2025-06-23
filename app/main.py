@@ -213,7 +213,7 @@ async def remove_player(player_id: int = Form(...)):
 async def create_new_game():
     game_id = "zouk-" + datetime.now().strftime("%H%M%S")
     async with aiosqlite.connect(db.DB_PATH) as conn:
-        await conn.execute("INSERT INTO game (id, round_number) VALUES (?, ?)", (game_id, 1))
+        await conn.execute("INSERT INTO game (id, round_number, game_started) VALUES (?, ?, ?)", (game_id, 1, False))
         await conn.commit()
     return RedirectResponse(url="/host", status_code=302)
 
@@ -239,6 +239,9 @@ async def begin_game():
 
         starter_index = round_count % len(players)
         starter_id = players[starter_index]["seat_number"]
+
+        # Lock the game and load the leaderboard
+        await conn.execute("UPDATE game SET round_number = ?, game_started = 1 WHERE id = ?", (round_count, game_id))
 
         # Initiate the first round 
         await conn.execute(
