@@ -46,7 +46,7 @@ async def join_post(name: str = Form(...)):
         if not game:
             game_id = "zouk-" + datetime.now().strftime("%H%M%S")
             round_number = 1
-            await conn.execute("INSERT INTO game (id) VALUES (?)", (game_id,round_number))
+            await conn.execute("INSERT INTO game (id,round_number) VALUES (?,?)", (game_id,round_number))
         else:
             game_id = game["id"]
 
