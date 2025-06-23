@@ -3,10 +3,28 @@
 
 <h2 class="text-lg font-semibold mb-4">🧑‍✈️ Game Host Panel</h2>
 
+{% if no_game %}
+<div class="bg-yellow-100 p-4 rounded text-center mb-4">
+    <p class="text-lg font-semibold text-gray-700 mb-2">🎮 No game found</p>
+    <form method="post" action="/game/new">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">
+            ➕ Start New Game
+        </button>
+    </form>
+</div>
+{% endif %}
+
+
 <ul class="space-y-2">
     {% for player in players %}
     <li class="flex items-center justify-between bg-gray-100 p-2 rounded">
-        <span class="text-blue-600 underline">{{ loop.index }}. <a href="/player/{{ player.id }}">{{ player.name }}</a></span>
+        <span class="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition duration-200">
+            {{ loop.index }}.
+            <a href="/player/{{ player.id }}" class="hover:underline hover:underline-offset-4 transition-all duration-200">
+              {{ player.name }}
+            </a>
+            <span class="text-sm opacity-70 hover:opacity-100 transition duration-200">👁</span>
+        </span>
         <div class="flex gap-2 items-center">
             <form method="post" action="/host/reorder" style="display:inline;">
                 {% if not loop.first %}
