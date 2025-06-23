@@ -1,5 +1,6 @@
+qrcode
+jinja2
 fastapi
 uvicorn
-jinja2
 aiosqlite
 python-multipart
