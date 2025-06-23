@@ -28,6 +28,19 @@ templates.env.globals["now"] = datetime.now
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
+# Scores calculator
+def score_round(bid: int, won: int, round_number: int) -> int:
+    if bid == 0:
+        if won == 0:
+            return round_number
+        else:
+            return -won
+    elif bid == won:
+        return won * 2
+    else:
+        return -abs(bid - won)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse("base.html", {"request": request, "current_page": "home"})
@@ -230,6 +243,12 @@ async def submit_bids_or_wins(request: Request):
                     "INSERT INTO scores (round_id, player_id, bid, won, points) VALUES (?, ?, ?, ?, ?)",
                     (round_id, pid, bid_val, 0, 0)
                 )
+
+                # After inserting all bids, mark the round as FINISH
+                await conn.execute(
+                    "UPDATE rounds SET round_status = 'FINISH' WHERE id = ?",
+                    (round_id,)
+                )                
         else:
             for player in players:
                 pid = player["id"]
@@ -239,9 +258,88 @@ async def submit_bids_or_wins(request: Request):
                     (won_val, round_id, pid)
                 )
 
+                # Fetch bid value
+                cur = await conn.execute("SELECT bid FROM scores WHERE round_id = ? AND player_id = ?", (round_id, pid))
+                bid = (await cur.fetchone())["bid"]
+
+                # Calculate and update points
+                points = score_round(bid, won_val,round_number)
+                
+                # Update scores with won and calculated points
+                await conn.execute(
+                    "UPDATE scores SET won = ?, points = ? WHERE round_id = ? AND player_id = ?",
+                    (won_val, points, round_id, pid)
+                )
+
+            # Increment round number
+            new_round_number = round_number + 1
+            await conn.execute("UPDATE game SET round_number = ? WHERE id = ?", (new_round_number, game_id))
+
+            # Determine next starter (first player in updated seat order)
+            cur = await conn.execute("SELECT id FROM players WHERE game_id = ? ORDER BY seat_number ASC", (game_id,))
+            ordered_players = await cur.fetchall()
+            new_starter = ordered_players[1]["id"] if len(ordered_players) > 1 else ordered_players[0]["id"]
+
+            await conn.execute(
+                "INSERT INTO rounds (game_id, round_number, starter_player_id, round_status) VALUES (?, ?, ?, 'START')",
+                (game_id, new_round_number, new_starter)
+            )
+
+            # Rotate seat numbers
+            total = len(ordered_players)
+            for i, player in enumerate(ordered_players):
+                new_seat = (i - 1) % total + 1
+                await conn.execute("UPDATE players SET seat_number = ? WHERE id = ?", (new_seat, player["id"]))
+
+
         await conn.commit()
 
     return RedirectResponse(url="/bids", status_code=302)
+
+@app.get("/scores", response_class=HTMLResponse)
+async def show_scores(request: Request):
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        # Get the latest game
+        cur = await conn.execute("SELECT id FROM game ORDER BY created_at DESC LIMIT 1")
+        game = await cur.fetchone()
+        if not game:
+            return HTMLResponse("No active game found", status_code=404)
+        game_id = game["id"]
+
+        # Get all players
+        cur = await conn.execute("SELECT id, name, seat_number FROM players WHERE game_id = ?", (game_id,))
+        players = await cur.fetchall()
+
+        # Get cumulative scores
+        scores = []
+        for player in players:
+            pid = player["id"]
+            name = player["name"]
+            seat = player["seat_number"]
+
+            score_cur = await conn.execute(
+                "SELECT SUM(points) AS total_score FROM scores WHERE player_id = ?", (pid,)
+            )
+            score_data = await score_cur.fetchone()
+            total_score = score_data["total_score"] or 0
+
+            scores.append({
+                "id": pid,
+                "name": name,
+                "seat": seat,
+                "total_score": total_score
+            })
+
+        # Sort descending by score
+        scores.sort(key=lambda x: x["total_score"], reverse=True)
+
+    return templates.TemplateResponse("scores.html", {
+        "request": request,
+        "scores": scores,
+        "current_page": "scores"
+    })
 
 @app.post("/reset-db")
 async def reset_all():
@@ -260,7 +358,7 @@ async def reset_keep_players():
         await conn.execute("DELETE FROM scores")
         await conn.execute("DELETE FROM rounds")
         await conn.commit()
-        await conn.execute("UPDATE game SET round_number = 0")
+        await conn.execute("UPDATE game SET round_number = 1")
         await conn.commit()
     return RedirectResponse(url="/host", status_code=302)
 
