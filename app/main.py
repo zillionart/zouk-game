@@ -75,6 +75,73 @@ async def join_post(name: str = Form(...)):
 
     return RedirectResponse(url=f"/player/{player_id}", status_code=302)
 
+@app.get("/player/{player_id}", response_class=HTMLResponse)
+async def show_player_dashboard(request: Request, player_id: int):
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        # Get player details
+        cur = await conn.execute("""
+            SELECT name, game_id FROM players WHERE id = ?
+        """, (player_id,))
+        player = await cur.fetchone()
+        if not player:
+            return HTMLResponse("Player not found", status_code=404)
+
+        name = player["name"]
+        game_id = player["game_id"]
+
+        # Get total score for this player
+        cur = await conn.execute("""
+            SELECT SUM(points) as total_score FROM scores WHERE player_id = ?
+        """, (player_id,))
+        total_score = (await cur.fetchone())["total_score"] or 0
+
+        # Get current round number
+        cur = await conn.execute("SELECT round_number FROM game WHERE id = ?", (game_id,))
+        round_number = (await cur.fetchone())["round_number"]
+
+        # Get rank of this player
+        cur = await conn.execute("""
+            SELECT p.id, p.name, SUM(s.points) as score FROM players p
+            LEFT JOIN scores s ON p.id = s.player_id
+            WHERE p.game_id = ?
+            GROUP BY p.id
+            ORDER BY score DESC
+        """, (game_id,))
+        leaderboard = await cur.fetchall()
+        rank = next((i+1 for i, row in enumerate(leaderboard) if row["id"] == player_id), None)
+
+        # Get latest bid and won (if any)
+        cur = await conn.execute("""
+            SELECT bid, won FROM scores
+            WHERE player_id = ? ORDER BY round_id DESC LIMIT 1
+        """, (player_id,))
+        latest = await cur.fetchone()
+        last_bid = latest["bid"] if latest else None
+        last_won = latest["won"] if latest else None
+
+        # Suggest bid (simple example: avoid average, here just mid value)
+        suggested_bid = max(0, round_number // 2)
+
+        # Suggestion message
+        hint = ""
+        if round_number >= 4 and rank >= len(leaderboard) - 1:
+            hint = "You're trailing. Consider a bold move! 💥"
+
+    return templates.TemplateResponse("player.html", {
+        "request": request,
+        "name": name,
+        "rank": rank,
+        "score": total_score,
+        "round_number": round_number,
+        "last_bid": last_bid,
+        "last_won": last_won,
+        "suggested_bid": suggested_bid,
+        "hint": hint,
+        "current_page": "player"
+    })
+
 @app.get("/host", response_class=HTMLResponse)
 async def host_panel(request: Request):
     async with aiosqlite.connect(db.DB_PATH) as conn:
