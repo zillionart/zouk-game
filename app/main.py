@@ -387,7 +387,7 @@ async def show_scores(request: Request):
         conn.row_factory = aiosqlite.Row
 
         # Get the latest game
-        cur = await conn.execute("SELECT id FROM game ORDER BY created_at DESC LIMIT 1")
+        cur = await conn.execute("SELECT id, round_number, game_started FROM game ORDER BY created_at DESC LIMIT 1")
         game = await cur.fetchone()
         if not game:
             return HTMLResponse("No active game found", status_code=404)
