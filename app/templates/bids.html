@@ -43,7 +43,7 @@
     </table>
 
     <input type="hidden" name="round_id" value="{{ round_id }}">
-    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">
+    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded transition-opacity duration-200">
         {% if round_status == "START" %}Start Round{% else %}Close Round{% endif %}
     </button>
 </form>
@@ -51,93 +51,104 @@
 <script>
     const roundStatus = "{{ round_status }}";
     const roundNumber = parseInt("{{ round_number }}");
-
+    const submitButton = document.querySelector('form button[type="submit"]');
+    
+    function disableSubmit(reason = "") {
+        submitButton.disabled = true;
+        submitButton.title = reason;
+        submitButton.classList.add("opacity-50", "cursor-not-allowed");
+    }
+    
+    function enableSubmit() {
+        submitButton.disabled = false;
+        submitButton.title = "";
+        submitButton.classList.remove("opacity-50", "cursor-not-allowed");
+    }
+    
     if (roundStatus === "START") {
         const bidInputs = document.querySelectorAll('.bid-input');
         const warning = document.getElementById("bid-warning");
-
+    
         function updateBidWarning() {
             let sum = 0;
             let filledCount = 0;
-            let emptyInputIndex = -1;
-
-            bidInputs.forEach((input, idx) => {
+    
+            bidInputs.forEach(input => {
                 const val = parseInt(input.value || "");
                 if (!isNaN(val)) {
                     sum += val;
                     filledCount++;
-                } else {
-                    emptyInputIndex = idx;
                 }
             });
-
+    
             if (filledCount === bidInputs.length) {
                 if (sum === roundNumber) {
-                    warning.textContent = `⚠️ Total bids add up to ${sum}, which is NOT allowed. Please adjust last player's bid.`;
-                    warning.classList.remove("text-green-600");
-                    warning.classList.add("text-red-600", "font-semibold");
+                    warning.textContent = `⚠️ Total bids = ${sum}, which is NOT allowed. Please adjust.`;
+                    warning.className = "text-red-600 font-semibold text-xs mt-1";
+                    disableSubmit("Total bids cannot equal the round number.");
                 } else {
                     warning.textContent = `✅ Bids total ${sum}. Valid bid.`;
-                    warning.classList.remove("text-red-600", "font-semibold");
-                    warning.classList.add("text-green-600");
+                    warning.className = "text-green-600 text-xs mt-1";
+                    enableSubmit();
                 }
             } else if (filledCount === bidInputs.length - 1) {
                 const disallowed = Math.min(roundNumber, Math.max(0, roundNumber - sum));
-
-                if (disallowed >= 0 && disallowed <= roundNumber) {
-                    warning.textContent = `🎯 Last player cannot bid ${disallowed} in this round. Pick any other number between 0 and ${roundNumber}.`;
-                    warning.classList.remove("text-green-600");
-                    warning.classList.add("text-yellow-600", "font-semibold");
-                } else {
-                    warning.textContent = `✅ Any value between 0 and ${roundNumber} is allowed for the last player.`;
-                    warning.classList.remove("text-red-600", "text-yellow-600", "font-semibold");
-                    warning.classList.add("text-green-600");
-                }
+                warning.textContent = `🎯 Last player cannot bid ${disallowed} in this round. Pick any other number between 0 and ${roundNumber}.`;
+                warning.className = "text-yellow-600 font-semibold text-xs mt-1";
+                disableSubmit("Invalid bid for last player.");
             } else {
                 warning.textContent = `ℹ️ Current sum of bids is ${sum}.`;
-                warning.classList.remove("text-red-600", "text-yellow-600", "font-semibold");
-                warning.classList.add("text-gray-500");
+                warning.className = "text-gray-500 text-xs mt-1";
+                disableSubmit("Complete all bids.");
             }
         }
-
-        bidInputs.forEach(input => {
-            input.addEventListener("input", updateBidWarning);
-        });
-
-        updateBidWarning(); // call on page load
+    
+        bidInputs.forEach(input => input.addEventListener("input", updateBidWarning));
+        updateBidWarning();
     }
+    
+    if (roundStatus === "FINISH") {
+        const wonInputs = document.querySelectorAll('input[name^="won_"]');
+        let warning = document.getElementById("won-warning");
+        if (!warning) {
+            warning = document.createElement("div");
+            warning.id = "won-warning";
+            warning.classList.add("text-xs", "mt-2");
+            document.querySelector("form").appendChild(warning);
+        }
 
-    // Existing form validation
-    document.getElementById("bid2win").addEventListener("submit", function (e) {
-        if (roundStatus === "FINISH") {
-            const wonInputs = document.querySelectorAll('input[name^="won_"]');
-            let totalWon = 0;
-            let isValid = true;
+        function updateWonWarning() {
+            let sum = 0;
+            let allFilled = true;
 
             wonInputs.forEach(input => {
-                const val = parseInt(input.value || "0");
-                if (val < 0 || val > roundNumber) {
-                    alert(`Winning value must be between 0 and ${roundNumber}.`);
-                    input.focus();
-                    isValid = false;
-                    e.preventDefault();
-                    return;
+                const val = parseInt(input.value || "");
+                if (isNaN(val)) {
+                    allFilled = false;
+                } else {
+                    sum += val;
                 }
-                totalWon += val;
             });
 
-            if (totalWon > roundNumber) {
-                alert(`Total number of hands won (${totalWon}) cannot exceed the number of cards in this round (${roundNumber}).`);
-                e.preventDefault();
-            }
-
-            if (!isValid) {
-                e.preventDefault();
+            if (!allFilled) {
+                warning.textContent = `ℹ️ Fill all winning values.`;
+                warning.className = "text-gray-500 text-xs mt-1";
+                disableSubmit("Complete all winning inputs.");
+            } else if (sum !== roundNumber) {
+                warning.textContent = `⚠️ Total wins = ${sum}, must equal number of cards in this round (${roundNumber}).`;
+                warning.className = "text-red-600 font-semibold text-xs mt-1";
+                disableSubmit("Invalid total hands won.");
+            } else {
+                warning.textContent = `✅ Total wins: ${sum} of ${roundNumber}.`;
+                warning.className = "text-green-600 text-xs mt-1";
+                enableSubmit();
             }
         }
-    });
-</script>
 
+        wonInputs.forEach(input => input.addEventListener("input", updateWonWarning));
+        updateWonWarning();
+    }
+
+    </script>
     
-
 {% endblock %}
