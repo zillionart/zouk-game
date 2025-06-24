@@ -9,11 +9,11 @@ from app import db
 from io import BytesIO
 from typing import List
 from datetime import datetime
-from fastapi import FastAPI, Request, Form
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,6 +30,8 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["now"] = datetime.now
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+active_connections: List[WebSocket] = []
 
 # Scores calculator
 def score_round(bid: int, won: int, round_number: int) -> int:
@@ -397,6 +399,9 @@ async def submit_bids_or_wins(request: Request):
 
         await conn.commit()
 
+        # Broadcast scores update to all connected websockets
+        await broadcast_scores_update()
+
     return RedirectResponse(url="/bids", status_code=302)
 
 @app.get("/scores", response_class=HTMLResponse)
@@ -454,6 +459,23 @@ async def show_scores(request: Request):
         "qr_image_base64": qr_image_base64,
         "current_page": "scores"
     })
+
+@app.websocket("/socket/scores")
+async def scores_websocket(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # Keep connection open
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+
+async def broadcast_scores_update():
+    for connection in active_connections:
+        try:
+            await connection.send_text("update")
+        except:
+            pass  # Ignore broken connections
 
 @app.post("/reset-db")
 async def reset_all():

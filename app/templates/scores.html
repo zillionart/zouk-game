@@ -4,7 +4,7 @@
 <h2 class="text-2xl font-bold text-center mb-6">🏆 Leaderboard</h2>
 <style>
     .fade-in {
-      animation: fadeIn 1s ease-in-out;
+      animation: fadeIn 2s ease-in-out;
     }
   
     @keyframes fadeIn {
@@ -51,15 +51,13 @@
 </div>
 
 <script>
-    setInterval(() => {
-      const content = document.querySelector('.fade-in');
-      if (content) {
-        content.classList.remove('fade-in');
-        void content.offsetWidth; // Trigger reflow
-        content.classList.add('fade-in');
+  const socket = new WebSocket(`ws://${window.location.host}/socket/scores`);
+  socket.onmessage = (event) => {
+      if (event.data === "update") {
+          console.log("🔄 Refreshing scoreboard...");
+          location.reload();
       }
-      location.reload();
-    }, 80000); // Refresh every 8 seconds
+  };
   </script>
 
 {% endblock %}
