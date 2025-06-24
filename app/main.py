@@ -280,10 +280,15 @@ async def show_bids(request: Request):
     async with aiosqlite.connect(db.DB_PATH) as conn:
         conn.row_factory = aiosqlite.Row
 
-        cur = await conn.execute("SELECT id FROM game ORDER BY created_at DESC LIMIT 1")
+        cur = await conn.execute("SELECT id, game_status FROM game ORDER BY created_at DESC LIMIT 1")
         game = await cur.fetchone()
         if not game:
             return HTMLResponse("No active game found", status_code=404)
+        
+        if game["game_status"] == 2:
+            # Redirect to host if game is already closed
+            return RedirectResponse(url="/host", status_code=302)
+
         game_id = game["id"]
 
         cur = await conn.execute("""
@@ -312,7 +317,8 @@ async def show_bids(request: Request):
         "round_number": round_number,
         "round_status": round_status,
         "round_id": round_id,
-        "current_page": "play"
+        "game_status": game["game_status"],
+         "current_page": "play"
     })
 
 @app.post("/bids")
@@ -494,7 +500,11 @@ async def close_game():
     async with aiosqlite.connect(db.DB_PATH) as conn:
         await conn.execute("UPDATE game SET game_status = 2")
         await conn.commit()
-    return RedirectResponse(url="/scores", status_code=302)
+    
+    # Notify all clients listening to the leaderboard
+    await broadcast_scores_update()
+
+    return RedirectResponse(url="/host", status_code=302)
 
 
 @app.post("/reset-db")
