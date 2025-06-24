@@ -3,4 +3,5 @@ jinja2
 fastapi
 uvicorn
 aiosqlite
+websockets
 python-multipart
