@@ -416,6 +416,7 @@ async def show_scores(request: Request):
             return HTMLResponse("No active game found", status_code=404)
         game_id = game["id"]
         game_started = game["game_started"]
+        round_number = game["round_number"]
 
         qr_image_base64 = None
         if game_started == 0:
@@ -442,10 +443,20 @@ async def show_scores(request: Request):
             score_data = await score_cur.fetchone()
             total_score = score_data["total_score"] or 0
 
+            # Get bid for current round
+            bid_cur = await conn.execute("""
+                SELECT s.bid FROM scores s
+                JOIN rounds r ON s.round_id = r.id
+                WHERE s.player_id = ? AND r.game_id = ? AND r.round_number = ?
+            """, (pid, game_id, round_number))
+            bid_row = await bid_cur.fetchone()
+            bid = bid_row["bid"] if bid_row else None
+
             scores.append({
                 "id": pid,
                 "name": name,
                 "seat": seat,
+                "bid": bid,
                 "total_score": total_score
             })
 
@@ -456,6 +467,7 @@ async def show_scores(request: Request):
         "request": request,
         "scores": scores,
         "game_started": game_started,
+        "round_number": round_number,
         "qr_image_base64": qr_image_base64,
         "current_page": "scores"
     })
@@ -476,6 +488,14 @@ async def broadcast_scores_update():
             await connection.send_text("update")
         except:
             pass  # Ignore broken connections
+
+@app.post("/game/close")
+async def close_game():
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        await conn.execute("UPDATE game SET game_started = 0")
+        await conn.commit()
+    return RedirectResponse(url="/scores", status_code=302)
+
 
 @app.post("/reset-db")
 async def reset_all():
