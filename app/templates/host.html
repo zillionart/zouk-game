@@ -44,23 +44,45 @@
     {% endfor %}
 </ul>
 
-<div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <form method="post" action="/host/reorder">
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded w-full">💾 Save Playing Order</button>
-    </form>
+<!-- BUTTON GRID -->
+<div class="flex flex-col items-center mt-6 space-y-4">
 
-    <form method="post" action="/game/start">
-        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded w-full">🚀 Begin Game</button>
-    </form>
-
-    <form method="post" action="/reset-db">
-        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded w-full">🧨 Reset All Data</button>
-    </form>
-
-    <form method="post" action="/reset-game">
-        <button type="submit" class="bg-yellow-500 text-white px-4 py-2 rounded w-full">🔁 Start New Game (Keep
-            Players)</button>
-    </form>
+    <!-- Top row buttons -->
+    <div class="flex space-x-4">
+      <form action="/host/save-order" method="post">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow-md">
+          💾 Save Playing Order
+        </button>
+      </form>
+  
+      <form action="/game/start" method="post">
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow-md">
+          🚀 Begin Game
+        </button>
+      </form>
+  
+      <form action="/game/close" method="post">
+        <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded shadow-md font-semibold">
+          🏅 Close Game
+        </button>
+      </form>
+    </div>
+  
+    <!-- Bottom row buttons -->
+    <div class="flex space-x-4">
+      <form action="/reset-db" method="post">
+        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow-md">
+          🧨 Reset All Data
+        </button>
+      </form>
+  
+      <form action="/reset-game" method="post">
+        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow-md">
+          🔁 Start New Game (Keep Players)
+        </button>
+      </form>
+    </div>
+  
 </div>
 
 {% endblock %}
