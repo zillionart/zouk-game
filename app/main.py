@@ -233,7 +233,7 @@ async def remove_player(player_id: int = Form(...)):
 async def create_new_game():
     game_id = "zouk-" + datetime.now().strftime("%H%M%S")
     async with aiosqlite.connect(db.DB_PATH) as conn:
-        await conn.execute("INSERT INTO game (id, round_number, game_started) VALUES (?, ?, ?)", (game_id, 1, False))
+        await conn.execute("INSERT INTO game (id, round_number, game_status) VALUES (?, ?, ?)", (game_id, 1, 0))
         await conn.commit()
     return RedirectResponse(url="/host", status_code=302)
 
@@ -261,7 +261,7 @@ async def begin_game():
         starter_id = players[starter_index]["seat_number"]
 
         # Lock the game and load the leaderboard
-        await conn.execute("UPDATE game SET round_number = ?, game_started = 1 WHERE id = ?", (round_count, game_id))
+        await conn.execute("UPDATE game SET round_number = ?, game_status = 1 WHERE id = ?", (round_count, game_id))
 
         # Initiate the first round 
         await conn.execute(
@@ -410,16 +410,16 @@ async def show_scores(request: Request):
         conn.row_factory = aiosqlite.Row
 
         # Get the latest game
-        cur = await conn.execute("SELECT id, round_number, game_started FROM game ORDER BY created_at DESC LIMIT 1")
+        cur = await conn.execute("SELECT id, round_number, game_status FROM game ORDER BY created_at DESC LIMIT 1")
         game = await cur.fetchone()
         if not game:
             return HTMLResponse("No active game found", status_code=404)
         game_id = game["id"]
-        game_started = game["game_started"]
+        game_status = game["game_status"]
         round_number = game["round_number"]
 
         qr_image_base64 = None
-        if game_started == 0:
+        if game_status == 0:
             join_url = str(request.base_url) + "join"
             img = qrcode.make(join_url)
             buffer = BytesIO()
@@ -466,7 +466,7 @@ async def show_scores(request: Request):
     return templates.TemplateResponse("scores.html", {
         "request": request,
         "scores": scores,
-        "game_started": game_started,
+        "game_status": game_status,
         "round_number": round_number,
         "qr_image_base64": qr_image_base64,
         "current_page": "scores"
@@ -492,7 +492,7 @@ async def broadcast_scores_update():
 @app.post("/game/close")
 async def close_game():
     async with aiosqlite.connect(db.DB_PATH) as conn:
-        await conn.execute("UPDATE game SET game_started = 0")
+        await conn.execute("UPDATE game SET game_status = 2")
         await conn.commit()
     return RedirectResponse(url="/scores", status_code=302)
 

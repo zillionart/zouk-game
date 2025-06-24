@@ -8,9 +8,9 @@ async def init_db():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS game (
                 id TEXT PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 round_number INTEGER DEFAULT 0,
-                game_started BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                game_status INTEGER DEFAULT 0
             );
         """)
 
