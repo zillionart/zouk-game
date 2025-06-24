@@ -1,36 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="max-w-md mx-auto bg-white shadow-lg rounded-xl p-6 space-y-4 mt-6 text-center">
-    <h2 class="text-2xl font-bold text-indigo-700">👋 Welcome, {{ name }}!</h2>
+<div class="max-w-md mx-auto mt-8 p-6 rounded-2xl shadow-xl bg-white space-y-6 text-center border-t-8 {% if rank == 1 %}border-yellow-400{% elif is_last %}border-red-400{% else %}border-indigo-300{% endif %}">
 
-    <div class="text-lg font-medium text-gray-600">
-        🎯 Round {{ round_number }}
+    <!-- Welcome -->
+    <h2 class="text-3xl font-extrabold {% if is_last %}text-red-600{% elif rank == 1 %}text-yellow-600{% else %}text-indigo-700{% endif %}">
+      👋 Welcome, {{ name }}!
+    </h2>
+  
+    <!-- Round -->
+    <div class="text-lg text-gray-500 tracking-wider uppercase font-semibold">
+      🎯 Round {{ round_number }}
     </div>
-
-    <div class="text-xl">
-        <span class="font-semibold text-green-700">Score:</span> {{ score }}
+  
+    <!-- Score + Rank -->
+    <div class="flex justify-around text-left text-lg mt-4">
+      <div class="bg-green-100 text-green-800 px-4 py-2 rounded-xl w-[45%] shadow-sm">
+        <div class="text-xs uppercase font-bold text-green-700">Game Score</div>
+        <div class="text-2xl font-bold">{{ score }}</div>
+      </div>
+      <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-xl w-[45%] shadow-sm">
+        <div class="text-xs uppercase font-bold text-blue-700">Rank</div>
+        <div class="text-2xl font-bold">{{ rank }} <span class="text-sm text-gray-600">of {{ total_players }}</span></div>
+      </div>
     </div>
-
-    <div class="text-lg">
-        <span class="font-semibold text-blue-700">Rank:</span> {{ rank }}
-    </div>
-
+  
+    <!-- Bid Summary -->
     {% if last_bid is not none %}
-    <div class="text-gray-600">
-        Last Round ➜ Bid: <strong>{{ last_bid }}</strong>, Won: <strong>{{ last_won }}</strong>
+    <div class="bg-gray-100 px-4 py-3 rounded-lg text-gray-700 shadow-sm">
+      <span class="font-semibold">Current Round ➜</span>
+      <span class="ml-2">🎯 <strong>Bid:</strong> {{ last_bid }} | <strong>Won:</strong> {{ last_won }}</span>
     </div>
     {% endif %}
-
-    <div class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-medium">
-        Suggested Bid: <span class="font-semibold">{{ suggested_bid }}</span>
+  
+    <!-- Suggested Bid -->
+    <div class="bg-yellow-100 text-yellow-800 px-6 py-3 rounded-full text-lg font-semibold shadow-inner">
+      💡 Suggested Bid: {{ suggested_bid }}
     </div>
-
+  
     {% if hint %}
-    <div class="text-red-600 font-semibold">
-        ⚠️ {{ hint }}
+    <div class="text-red-500 font-medium text-sm mt-1">
+      ⚠️ {{ hint }}
     </div>
     {% endif %}
-</div>
+  
+    {% if is_last %}
+    <div class="text-xs text-red-500 font-semibold italic animate-pulse">
+      You’re trailing. Time for a comeback move! 🔥
+    </div>
+    {% endif %}
+  
+    <p class="text-xs text-gray-400 italic mt-4">Stay sharp. Every round counts!</p>
+  </div>  
+
+<script>
+    const socket = new WebSocket(`ws://${window.location.host}/socket/scores`);
+    let firstPing = true;
+
+    socket.onmessage = (event) => {
+        if (event.data === "update") {
+            if (firstPing) {
+                firstPing = false;
+                return; //ignore the first ping
+            } 
+            console.log("🔄 Player page refreshing...");
+            location.reload();
+        }
+    };
+  </script>
+  
 
 {% endblock %}
