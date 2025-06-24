@@ -2,6 +2,7 @@ import os
 import base64
 import qrcode
 import signal
+import random
 import asyncio
 import pathlib
 import aiosqlite
@@ -45,6 +46,23 @@ def score_round(bid: int, won: int, round_number: int) -> int:
     else:
         return -abs(bid - won)
 
+# Suggested bid logic 
+def suggest_bid(round_number: int, rank: int, total_players: int, last_bid: int | None = None) -> int:
+    if round_number == 0:
+        return 0
+
+    weights = []
+    for b in range(round_number + 1):
+        score = 10 if b == 0 else 2 * b  # Zouk = 10 pts, others = 2×bid
+        if last_bid is not None and b == last_bid:
+            score -= 1  # discourage repeat
+        if rank > total_players // 2:
+            score *= 1.2  # encourage comeback bids
+        weights.append(score)
+
+    best_bid = max(range(len(weights)), key=lambda i: weights[i])
+    return best_bid
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -80,87 +98,85 @@ async def join_post(name: str = Form(...)):
 
     return RedirectResponse(url=f"/player/{player_id}", status_code=302)
 
-@app.get("/player/{player_id}", response_class=HTMLResponse)
-async def show_player_dashboard(request: Request, player_id: int):
+@app.get("/player/{id}", response_class=HTMLResponse)
+async def player_view(request: Request, id: int):
     async with aiosqlite.connect(db.DB_PATH) as conn:
         conn.row_factory = aiosqlite.Row
 
         # Get player details
-        cur = await conn.execute("""
-            SELECT name, game_id FROM players WHERE id = ?
-        """, (player_id,))
-        player = await cur.fetchone()
+        player_cur = await conn.execute("SELECT name, game_id FROM players WHERE id = ?", (id,))
+        player = await player_cur.fetchone()
         if not player:
             return HTMLResponse("Player not found", status_code=404)
 
         name = player["name"]
         game_id = player["game_id"]
 
-        # Get total score for this player
-        cur = await conn.execute("""
-            SELECT SUM(points) as total_score FROM scores WHERE player_id = ?
-        """, (player_id,))
-        total_score = (await cur.fetchone())["total_score"] or 0
+        # Get current round
+        round_cur = await conn.execute("SELECT round_number FROM game WHERE id = ?", (game_id,))
+        round_data = await round_cur.fetchone()
+        round_number = round_data["round_number"] if round_data else 0
 
-        # Get current round number
-        cur = await conn.execute("SELECT round_number FROM game WHERE id = ?", (game_id,))
-        round_number = (await cur.fetchone())["round_number"]
+        # Get total players
+        total_players_cur = await conn.execute("SELECT COUNT(*) as total FROM players WHERE game_id = ?", (game_id,))
+        total_players = (await total_players_cur.fetchone())["total"]
 
-        # Get rank of this player
-        cur = await conn.execute("""
-            SELECT p.id, p.name, SUM(s.points) as score FROM players p
-            LEFT JOIN scores s ON p.id = s.player_id
-            WHERE p.game_id = ?
-            GROUP BY p.id
-            ORDER BY score DESC
+        # Score and rank
+        score_rows = await conn.execute("""
+            SELECT player_id, SUM(points) AS total_score
+            FROM scores
+            WHERE player_id IN (SELECT id FROM players WHERE game_id = ?)
+            GROUP BY player_id
         """, (game_id,))
-        leaderboard = await cur.fetchall()
-        rank = next((i+1 for i, row in enumerate(leaderboard) if row["id"] == player_id), None)
+        score_data = await score_rows.fetchall()
+        scores = {row["player_id"]: row["total_score"] or 0 for row in score_data}
+        score = scores.get(id, 0)
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        rank = next((i + 1 for i, (pid, _) in enumerate(sorted_scores) if pid == id), total_players)
+        is_last = (rank == total_players)
 
-        # Get latest bid and won (if any)
-        cur = await conn.execute("""
-            SELECT bid, won FROM scores
-            WHERE player_id = ? ORDER BY round_id DESC LIMIT 1
-        """, (player_id,))
-        latest = await cur.fetchone()
-        last_bid = latest["bid"] if latest else None
-        last_won = latest["won"] if latest else None
+        # Last round bid and win
+        last_round_cur = await conn.execute("SELECT id FROM rounds WHERE game_id = ? ORDER BY round_number DESC LIMIT 1", (game_id,))
+        last_round = await last_round_cur.fetchone()
+        last_bid = last_won = None
+        if last_round:
+            score_cur = await conn.execute("SELECT bid, won FROM scores WHERE round_id = ? AND player_id = ?", (last_round["id"], id))
+            score_row = await score_cur.fetchone()
+            if score_row:
+                last_bid = score_row["bid"]
+                last_won = score_row["won"]
 
-        # Suggest bid (simple example: avoid average, here just mid value)
-        player_count = len(leaderboard)
-        if round_number <= 2:
-            suggested_bid = 1  # too early, low risk
-        elif round_number >= 10 and rank == player_count:
-            # last player, go bold!
-            suggested_bid = round_number
-        elif rank == 1:
-            # leader plays safe
-            suggested_bid = 0
-        elif rank >= player_count - 1:
-            # trailing or 2nd last
-            suggested_bid = round_number - 1
-        else:
-            # balanced approach
-            suggested_bid = round_number // 2
+        # Make a recommended bid and drop hints 
+        suggested_bid = suggest_bid(round_number, rank, total_players, last_bid)
+        top_score = sorted_scores[0][1] if sorted_scores else 0
+        gap = top_score - score
+        hint = None
+
+        if gap >= 20:
+            hint = "⚠️ You’re falling behind. Consider a bold move or a Zouk bid."
+        elif gap >= 10:
+            hint = "💡 A smart bid can close the gap. Stay sharp!"
+        elif suggested_bid == last_bid:
+            hint = "Try a different bid this time."
 
 
-        # Suggestion message
-        hint = ""
-        if round_number >= 4 and rank >= len(leaderboard) - 1:
-            hint = "You're trailing. Consider a bold move! 💥"
+        # Broadcast scores update to all connected websockets
+        await broadcast_scores_update()
 
-    return templates.TemplateResponse("player.html", {
-        "request": request,
-        "name": name,
-        "rank": rank,
-        "score": total_score,
-        "round_number": round_number,
-        "last_bid": last_bid,
-        "last_won": last_won,
-        "suggested_bid": suggested_bid,
-        "hint": hint,
-        "current_page": "player"
-    })
+        return templates.TemplateResponse("player.html", {
+            "request": request,
+            "name": name,
+            "round_number": round_number,
+            "score": score,
+            "rank": rank,
+            "total_players": total_players,
+            "last_bid": last_bid,
+            "last_won": last_won,
+            "suggested_bid": suggested_bid,
+            "hint": hint,
+            "is_last": is_last
+        })
+
 
 @app.get("/host", response_class=HTMLResponse)
 async def host_panel(request: Request):
@@ -227,6 +243,9 @@ async def remove_player(player_id: int = Form(...)):
     async with aiosqlite.connect(db.DB_PATH) as conn:
         await conn.execute("DELETE FROM players WHERE id = ?", (player_id,))
         await conn.commit()
+        # Broadcast scores update to all connected websockets
+        await broadcast_scores_update()
+    
     return RedirectResponse(url="/host", status_code=302)
 
 @app.post("/game/new")
@@ -272,6 +291,9 @@ async def begin_game():
             (game_id, round_count, starter_id),
         )
         await conn.commit()
+
+        # Broadcast scores update to all connected websockets
+        await broadcast_scores_update()
 
     return RedirectResponse(url="/bids", status_code=302)
 
