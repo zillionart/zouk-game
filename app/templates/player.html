@@ -51,21 +51,27 @@
     {% endif %}
   
     <p class="text-xs text-gray-400 italic mt-4">Stay sharp. Every round counts!</p>
+    <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300">
+        🔄 Refresh Page
+    </button>
   </div>  
 
-<script>
+  <script>
     const socket = new WebSocket(`ws://${window.location.host}/socket/scores`);
-    let firstPing = true;
-
+    let lastReloadTime = 0;
+    const RELOAD_THROTTLE_MS = 3000;  // 3 seconds
+  
     socket.onmessage = (event) => {
-        if (event.data === "update") {
-            if (firstPing) {
-                firstPing = false;
-                return; //ignore the first ping
-            } 
-            console.log("🔄 Player page refreshing...");
-            location.reload();
+      if (event.data === "update") {
+        const now = Date.now();
+        if (now - lastReloadTime > RELOAD_THROTTLE_MS) {
+          console.log("🔄 Player page refreshing...");
+          lastReloadTime = now;
+          location.reload();
+        } else {
+          console.log("⏱️ Reload throttled — skipping.");
         }
+      }
     };
   </script>
   

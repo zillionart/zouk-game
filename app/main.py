@@ -32,7 +32,9 @@ templates.env.globals["now"] = datetime.now
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-active_connections: List[WebSocket] = []
+# Store active connections globally
+active_connections: list[WebSocket] = []
+
 
 # Scores calculator
 def score_round(bid: int, won: int, round_number: int) -> int:
@@ -159,10 +161,6 @@ async def player_view(request: Request, id: int):
         elif suggested_bid == last_bid:
             hint = "Try a different bid this time."
 
-
-        # Broadcast scores update to all connected websockets
-        await broadcast_scores_update()
-
         return templates.TemplateResponse("player.html", {
             "request": request,
             "name": name,
@@ -243,8 +241,8 @@ async def remove_player(player_id: int = Form(...)):
     async with aiosqlite.connect(db.DB_PATH) as conn:
         await conn.execute("DELETE FROM players WHERE id = ?", (player_id,))
         await conn.commit()
-        # Broadcast scores update to all connected websockets
-        await broadcast_scores_update()
+        # Broadcast scores. Safely update to all connected websockets
+        await safe_broadcast_scores_update()
     
     return RedirectResponse(url="/host", status_code=302)
 
@@ -292,8 +290,8 @@ async def begin_game():
         )
         await conn.commit()
 
-        # Broadcast scores update to all connected websockets
-        await broadcast_scores_update()
+        # Broadcast scores. Safely update to all connected websockets
+        await safe_broadcast_scores_update()
 
     return RedirectResponse(url="/bids", status_code=302)
 
@@ -427,8 +425,8 @@ async def submit_bids_or_wins(request: Request):
 
         await conn.commit()
 
-        # Broadcast scores update to all connected websockets
-        await broadcast_scores_update()
+        # Broadcast scores. Safely update to all connected websockets
+        await safe_broadcast_scores_update()
 
     return RedirectResponse(url="/bids", status_code=302)
 
@@ -504,18 +502,28 @@ async def show_scores(request: Request):
 async def scores_websocket(websocket: WebSocket):
     await websocket.accept()
     active_connections.append(websocket)
+    print(f"📡 WebSocket connected — total: {len(active_connections)}")
     try:
         while True:
             await websocket.receive_text()  # Keep connection open
     except WebSocketDisconnect:
         active_connections.remove(websocket)
+        print(f"🔌 WebSocket disconnected — total: {len(active_connections)}")
 
 async def broadcast_scores_update():
     for connection in active_connections:
         try:
             await connection.send_text("update")
-        except:
-            pass  # Ignore broken connections
+        except Exception:
+            active_connections.remove(connection)  
+
+# Prevent accidental cascade during page reloads or solo play
+async def safe_broadcast_scores_update(force=False):
+    if force or len(active_connections) > 1:
+        print("📣 Broadcasting score update")
+        await broadcast_scores_update()
+    else:
+        print("🔇 Suppressed broadcast — not enough active clients")            
 
 @app.post("/game/close")
 async def close_game():
@@ -523,8 +531,8 @@ async def close_game():
         await conn.execute("UPDATE game SET game_status = 2")
         await conn.commit()
     
-    # Notify all clients listening to the leaderboard
-    await broadcast_scores_update()
+    # Broadcast scores. Safely update to all connected websockets
+    await safe_broadcast_scores_update()
 
     return RedirectResponse(url="/host", status_code=302)
 
