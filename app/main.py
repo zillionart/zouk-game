@@ -519,11 +519,25 @@ async def broadcast_scores_update():
 
 # Prevent accidental cascade during page reloads or solo play
 async def safe_broadcast_scores_update(force=False):
+    print(f"🧩 WebSocket clients connected: {len(active_connections)}")
     if force or len(active_connections) > 1:
         print("📣 Broadcasting score update")
         await broadcast_scores_update()
     else:
-        print("🔇 Suppressed broadcast — not enough active clients")            
+        print("🔇 Suppressed broadcast — not enough active clients")
+
+# Player poll for keeping track of round status     
+@app.get("/player/{id}/checkin")
+async def round_check(id: int):
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+        cur = await conn.execute("""
+            SELECT g.round_number
+            FROM players p JOIN game g ON p.game_id = g.id
+            WHERE p.id = ?
+        """, (id,))
+        row = await cur.fetchone()
+        return {"round_number": row["round_number"] if row else 0}
 
 @app.post("/game/close")
 async def close_game():
