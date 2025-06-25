@@ -59,22 +59,18 @@
   <script>
     const socket = new WebSocket(`ws://${window.location.host}/socket/scores`);
     let hasReloaded = false;
-    const RELOAD_THROTTLE_MS = 3000;
+    let lastRound = {{ round_number }};  
+    const playerId = {{ player_id }}; 
+    const POLL_INTERVAL = 15000; // 15 seconds
     
     socket.onmessage = (event) => {
         if (event.data === "update" && !hasReloaded) {
             hasReloaded = true;
             console.log("🔄 Reloading due to socket update...");
-            setTimeout(() => location.reload(), 300);  // Small delay to allow any layout to settle
+            setTimeout(() => location.reload(), 300);  
         }
     };
-    </script>
-  
-  <script>
-    let lastRound = {{ round_number }};  // from Jinja context
-    const playerId = {{ id }};  // inject player id in the page context
-    const POLL_INTERVAL = 5000; // 5 seconds
-    
+   
     async function checkForUpdate() {
         try {
             const res = await fetch(`/player/${playerId}/checkin`);
@@ -90,6 +86,12 @@
     
     // Poll periodically
     setInterval(checkForUpdate, POLL_INTERVAL);
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            checkForUpdate();
+        }
+        });
     </script>
 
 {% endblock %}

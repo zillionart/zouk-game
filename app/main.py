@@ -106,11 +106,12 @@ async def player_view(request: Request, id: int):
         conn.row_factory = aiosqlite.Row
 
         # Get player details
-        player_cur = await conn.execute("SELECT name, game_id FROM players WHERE id = ?", (id,))
+        player_cur = await conn.execute("SELECT id, name, game_id FROM players WHERE id = ?", (id,))
         player = await player_cur.fetchone()
         if not player:
             return HTMLResponse("Player not found", status_code=404)
 
+        player_id = player["id"]
         name = player["name"]
         game_id = player["game_id"]
 
@@ -163,6 +164,7 @@ async def player_view(request: Request, id: int):
 
         return templates.TemplateResponse("player.html", {
             "request": request,
+            "player_id": player_id,
             "name": name,
             "round_number": round_number,
             "score": score,
@@ -532,12 +534,17 @@ async def round_check(id: int):
     async with aiosqlite.connect(db.DB_PATH) as conn:
         conn.row_factory = aiosqlite.Row
         cur = await conn.execute("""
-            SELECT g.round_number
+            SELECT g.round_number, p.name
             FROM players p JOIN game g ON p.game_id = g.id
             WHERE p.id = ?
         """, (id,))
         row = await cur.fetchone()
-        return {"round_number": row["round_number"] if row else 0}
+        if row:
+            print("Player check-in for:", row["name"])
+            return {"round_number": row["round_number"]}
+        else:
+            print("❌ Player not found for ID:", id)
+            return {"round_number": 0}
 
 @app.post("/game/close")
 async def close_game():
