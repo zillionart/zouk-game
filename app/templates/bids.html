@@ -149,6 +149,23 @@
         updateWonWarning();
     }
 
+    // Autofocus the first input field on load
+    window.addEventListener("DOMContentLoaded", () => {
+    if (roundStatus === "START") {
+        const bidInputs = document.querySelectorAll('.bid-input');
+        if (bidInputs.length > 0) {
+            bidInputs[0].scrollIntoView({ behavior: "smooth", block: "center" });
+            bidInputs[0].focus();
+        }
+    } else if (roundStatus === "FINISH") {
+        const wonInputs = document.querySelectorAll('input[name^="won_"]');
+        if (wonInputs.length > 0) {
+            wonInputs[0].scrollIntoView({ behavior: "smooth", block: "center" });
+            wonInputs[0].focus();
+        }
+    }
+    });
+
     </script>
     
 {% endblock %}
