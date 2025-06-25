@@ -100,6 +100,14 @@ async def join_post(name: str = Form(...)):
 
     return RedirectResponse(url=f"/player/{player_id}", status_code=302)
 
+@app.get("/rules", response_class=HTMLResponse)
+async def zouk_rules(request: Request):
+    return templates.TemplateResponse("rules.html", {"request": request})
+
+@app.get("/feedback", response_class=HTMLResponse)
+async def feedback_page(request: Request):
+    return templates.TemplateResponse("feedback.html", {"request": request})
+
 @app.get("/player/{id}", response_class=HTMLResponse)
 async def player_view(request: Request, id: int):
     async with aiosqlite.connect(db.DB_PATH) as conn:
@@ -164,6 +172,7 @@ async def player_view(request: Request, id: int):
 
         return templates.TemplateResponse("player.html", {
             "request": request,
+            "hide_header": True,
             "player_id": player_id,
             "name": name,
             "round_number": round_number,
