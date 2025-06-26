@@ -104,10 +104,6 @@ async def join_post(name: str = Form(...)):
 async def zouk_rules(request: Request):
     return templates.TemplateResponse("rules.html", {"request": request})
 
-@app.get("/feedback", response_class=HTMLResponse)
-async def feedback_page(request: Request):
-    return templates.TemplateResponse("feedback.html", {"request": request})
-
 @app.get("/player/{id}", response_class=HTMLResponse)
 async def player_view(request: Request, id: int):
     async with aiosqlite.connect(db.DB_PATH) as conn:
@@ -440,6 +436,18 @@ async def submit_bids_or_wins(request: Request):
         await safe_broadcast_scores_update()
 
     return RedirectResponse(url="/bids", status_code=302)
+
+@app.post("/player/bid")
+async def player_bid(player_id: int = Form(...), round_id: int = Form(...), bid: int = Form(...)):
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        await conn.execute("""
+            UPDATE scores
+            SET bid = ?
+            WHERE player_id = ? AND round_id = ?
+        """, (bid, player_id, round_id))
+        await conn.commit()
+    return RedirectResponse(url=f"/player/{player_id}", status_code=302)
+
 
 @app.get("/scores", response_class=HTMLResponse)
 async def show_scores(request: Request):
