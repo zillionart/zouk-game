@@ -33,6 +33,12 @@
                         </a>
                     </li>
                     <li>
+                        <a href="/rules" title="Rules"
+                            class="hover:underline {% if current_page == 'rules' %}font-bold text-blue-600{% endif %}">
+                            Rules
+                        </a>
+                    </li>                    
+                    <li>
                         <a href="/join" title="Join Game"
                             class="hover:underline {% if current_page == 'join' %}font-bold text-blue-600{% endif %}">
                             Join
@@ -54,6 +60,17 @@
             </nav>
         </header>
         {% endif %}
+
+        <!-- Player-specific Header -->
+        {% if hide_header %}
+        <header class="p-3 bg-gradient-to-r from-rose-100 via-white to-emerald-100 text-center shadow-md">
+            <div class="flex items-center justify-between px-4">
+                <h1 class="text-lg font-semibold text-red-800">♦ Zouk Player Mode</h1>
+            </div>
+        </header>
+        {% endif %}
+
+
 
         <!-- Main Content -->
         <main class="flex-grow px-4 py-6">
