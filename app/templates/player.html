@@ -33,25 +33,11 @@
     </div>
     {% endif %}
   
-    <div class="my-4">
-        <label for="bid" class="block text-sm font-semibold mb-1">🎯 Select your bid:</label>
-        <input type="range" id="bid" name="bid" min="0" max="{{ round_number }}" value="0"
-               class="w-full" oninput="updateBidPreview(this.value)">
-        <div class="text-center mt-2">
-          <span class="font-bold text-lg" id="bid-value">0</span> hands
-        </div>
-      </div>
-      
-      <div class="my-6">
-        <p class="text-sm mb-1 text-gray-700">📈 Projected Score</p>
-        <div class="w-full bg-gray-200 h-4 rounded-full relative">
-          <div id="score-line" class="bg-green-500 h-4 rounded-full absolute left-0 transition-all duration-300"
-               style="width: 0%"></div>
-          <div class="absolute w-full text-center text-xs font-medium top-0">Score: <span id="score-preview">–</span></div>
-        </div>
+    <!-- Suggested Bid -->
+    <div class="bg-yellow-100 text-yellow-800 px-6 py-3 rounded-full text-lg font-semibold shadow-inner">
+      💡 Suggested Bid: {{ suggested_bid }}
       </div>
      
-  
     {% if hint %}
     <div class="text-red-500 font-medium text-sm mt-1">
       ⚠️ {{ hint }}
