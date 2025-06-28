@@ -1,109 +1,184 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="max-w-md mx-auto mt-8 p-6 rounded-2xl shadow-xl bg-white space-y-6 text-center border-t-8 {% if rank == 1 %}border-yellow-400{% elif is_last %}border-red-400{% else %}border-indigo-300{% endif %}">
+<div
+  class="max-w-sm mx-auto mt-8 p-6 rounded-2xl shadow-xl bg-white space-y-6 text-center border-t-8 {% if rank == 1 %}border-yellow-400{% elif is_last %}border-red-400{% else %}border-indigo-300{% endif %}">
 
-    <!-- Welcome -->
-    <h2 class="text-3xl font-extrabold {% if is_last %}text-red-600{% elif rank == 1 %}text-yellow-600{% else %}text-indigo-700{% endif %}">
-      👋 Hi, {{ name }}!
-    </h2>
-  
-    <!-- Round -->
-    <div class="text-lg text-gray-500 tracking-wider uppercase font-semibold">
-      🎯 Round {{ round_number }}
-    </div>
-  
-    <!-- Score + Rank -->
-    <div class="flex justify-around text-left text-lg mt-4">
-      <div class="bg-green-100 text-green-800 px-4 py-2 rounded-xl w-[45%] shadow-sm">
-        <div class="text-xs uppercase font-bold text-green-700">Game Score</div>
-        <div class="text-2xl font-bold">{{ score }}</div>
-      </div>
-      <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-xl w-[45%] shadow-sm">
-        <div class="text-xs uppercase font-bold text-blue-700">Rank</div>
-        <div class="text-2xl font-bold">{{ rank }} <span class="text-sm text-gray-600">of {{ total_players }}</span></div>
-      </div>
-    </div>
-  
-    <!-- Bid Summary -->
-    {% if last_bid is not none %}
-    <div class="bg-gray-100 px-4 py-3 rounded-lg text-gray-700 shadow-sm">
-      <span class="font-semibold">Current Round ➜</span>
-      <span class="ml-2">🎯 <strong>Bid:</strong> {{ last_bid }} | <strong>Won:</strong> {{ last_won }}</span>
-    </div>
-    {% endif %}
-  
-    <!-- Suggested Bid -->
-    <div class="bg-yellow-100 text-yellow-800 px-6 py-3 rounded-full text-lg font-semibold shadow-inner">
-      💡 Suggested Bid: {{ suggested_bid }}
-      </div>
-     
-    {% if hint %}
-    <div class="text-red-500 font-medium text-sm mt-1">
-      ⚠️ {{ hint }}
-    </div>
-    {% endif %}
-  
-    {% if is_last %}
-    <div class="text-xs text-red-500 font-semibold italic animate-pulse">
-      You’re trailing. Time for a comeback move! 🔥
-    </div>
-    {% endif %}
-  
-    <p class="text-xs text-gray-400 italic mt-4">Stay sharp. Every round counts!</p>
-    <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-gray-200 rounded-lg text-sm hover:bg-gray-300">
-        🔄 Refresh Page
-    </button>
-  </div>  
+  <!-- Welcome -->
+  <h2
+    class="text-3xl font-extrabold {% if is_last %}text-red-600{% elif rank == 1 %}text-yellow-600{% else %}text-indigo-700{% endif %}">
+    👋 Hi, {{ name }}!
+  </h2>
 
-  <script>
-    const socket = new WebSocket(`ws://${window.location.host}/socket/scores`);
-    let hasReloaded = false;
-    let lastRound = {{ round_number }};  
-    const playerId = {{ player_id }}; 
-    const currentScore = {{ score }};  // passed from backend
-    const POLL_INTERVAL = 15000; // 15 seconds
-    
-    socket.onmessage = (event) => {
-        if (event.data === "update" && !hasReloaded) {
-            hasReloaded = true;
-            console.log("🔄 Reloading due to socket update...");
-            setTimeout(() => location.reload(), 300);  
+  <!-- Round -->
+  <div class="text-lg text-gray-500 tracking-wider uppercase font-semibold">
+    🎯 Round {{ round_number }}
+  </div>
+
+  <!-- Score + Rank -->
+  <div class="flex justify-around text-left text-lg mt-4">
+    <div class="bg-green-100 text-green-800 px-4 py-2 rounded-xl w-[45%] shadow-sm">
+      <div class="text-xs uppercase font-bold text-green-700">Game Score</div>
+      <div class="text-2xl font-bold">{{ score }}</div>
+    </div>
+    <div class="bg-blue-100 text-blue-800 px-4 py-2 rounded-xl w-[45%] shadow-sm">
+      <div class="text-xs uppercase font-bold text-blue-700">Rank</div>
+      <div class="text-2xl font-bold">{{ rank }} <span class="text-sm text-gray-600">of {{ total_players }}</span></div>
+    </div>
+  </div>
+
+  {% if game_status == 0 %}
+  <div class="text-center text-red-600 mt-6 font-semibold">
+    ⚠️ ⏳ Waiting for game to start…
+  </div>
+  {% else %}
+  <!-- Bid Summary -->
+  {% if last_bid is not none %}
+  <div class="bg-gray-100 px-4 py-3 rounded-lg text-gray-700 shadow-sm">
+    <span class="font-semibold">Current Round ➜</span>
+    <span class="ml-2">🎯 <strong>Bid:</strong> {{ last_bid }} | <strong>Won:</strong> {{ last_won }}</span>
+  </div>
+  {% endif %}
+
+  {% if hint %}
+  <div class="text-red-500 font-medium text-sm mt-1">
+    ⚠️ {{ hint }}
+  </div>
+  {% endif %}
+
+  {% if is_last %}
+  <div class="text-xs text-red-500 font-semibold italic animate-pulse">
+    You’re trailing. Time for a comeback move! 🔥
+  </div>
+  {% endif %}
+
+  <!-- Bid Entry Form -->
+  <form action="/player/bid" method="POST" class="mt-6 space-y-4">
+    <!-- Hidden fields -->
+    <input type="hidden" name="player_id" value="{{ player_id }}">
+    <input type="hidden" name="round_id" value="{{ round_number }}">
+
+    <label for="bid" class="block text-gray-600 font-medium">🎯 Choose Your Bid
+      <span id="bid_value" class="text-sm font-medium text-gray-700 ml-2">{{ suggested_bid or 0 }}</span>
+    </label>
+
+    <input id="bid_slider" type="range" min="0" max="{{ round_number }}" step="1" value="{{ suggested_bid or 0 }}"
+      name="bid" list="tickmarks" class="w-full accent-pink-600 transition-all duration-200 ease-in-out"
+      oninput="updateBidPreview(this.value)">
+
+    <datalist id="tickmarks">
+      {% for i in range(round_number + 1) %}
+      <option value="{{ i }}"></option>
+      {% endfor %}
+    </datalist>
+
+    <div class="flex justify-between text-xs text-gray-400 mt-1 px-1">
+      <span>0</span>
+      {% if round_number > 1 %}
+      <span>{{ round_number // 2 }}</span>
+      {% endif %}
+      <span>{{ round_number }}</span>
+    </div>
+
+    <!-- Visual Score Preview Line -->
+    <div class="mt-4">
+      <div class="text-sm text-gray-600 mb-1">📈 Projected Score if Bid is Met</div>
+      <div class="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+        <div id="score-line" class="absolute top-0 left-0 h-4 bg-green-400 transition-all ease-in-out duration-300"
+          style="width: 0%"></div>
+      </div>
+      <div class="text-sm mt-1 text-gray-600">
+        Bid: <span id="bid-value">{{ suggested_bid or 0 }}</span> → Score: <span id="score-preview">{{ score }}</span>
+      </div>
+    </div>
+
+    <div class="flex justify-center gap-4 mt-6">
+      <button type="submit"
+        class="px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-full text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed"
+        {% if not can_submit %}disabled{% endif %}>
+        🚀 Submit Bid
+      </button>
+      {% if can_submit %}
+      <script>
+        if (window.navigator.vibrate) {
+          window.navigator.vibrate([100, 50, 100]);
         }
-    };
-   
-    async function checkForUpdate() {
-        try {
-            const res = await fetch(`/player/${playerId}/checkin`);
-            const data = await res.json();
-            if (data.round_number > lastRound) {
-                console.log("🕒 Round has advanced. Reloading...");
-                location.reload();
-            }
-        } catch (e) {
-            console.warn("Polling failed", e);
-        }
+      </script>
+      <div class="animate-bounce text-green-600 font-bold mt-2">🎯 It's your turn to bid!</div>
+      {% else %}
+      <div class="text-sm text-gray-400 italic mt-2">⏳ Waiting for other players to bid...</div>
+      {% endif %}
+      <button onclick="location.reload()" type="button"
+        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-full text-sm shadow">
+        🔄 Refresh
+      </button>
+    </div>
+
+    {% if not is_turn %}
+    <div class="text-xs text-gray-500 mt-2 italic animate-pulse">
+      ⏳ Waiting for your turn to bid...
+    </div>
+    {% else %}
+    <div class="text-green-700 font-bold mt-2 animate-bounce">
+      ✅ It's your turn!
+    </div>
+    <script>navigator.vibrate && navigator.vibrate([150]);</script>
+    {% endif %}
+    {% endif %}
+</div>
+
+<!-- Socket + Polling + Bid Preview Script -->
+<script>
+  const socket = new WebSocket(`ws://${window.location.host}/socket/scores`);
+  let hasReloaded = false;
+  let lastRound = {{ round_number }};
+  const playerId = {{ player_id }};
+  const currentScore = {{ score }};
+  const POLL_INTERVAL = 15000;
+
+  socket.onmessage = (event) => {
+    if (event.data === "update" && !hasReloaded) {
+      hasReloaded = true;
+      console.log("🔄 Reloading due to socket update...");
+      setTimeout(() => location.reload(), 300);
     }
-    
-    // Poll periodically
-    setInterval(checkForUpdate, POLL_INTERVAL);
+  };
 
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
-            checkForUpdate();
-        }
-        });
-   
-    function updateBidPreview(bid) {
-        document.getElementById("bid-value").textContent = bid;
-        
-        const projected = currentScore + 10 + parseInt(bid); // assuming bid is met
-        document.getElementById("score-preview").textContent = projected;
-
-        // Scale width from 0 to 100% (example max score: 100)
-        const width = Math.min(100, (projected / 100) * 100);
-        document.getElementById("score-line").style.width = width + "%";
+  async function checkForUpdate() {
+    try {
+      const res = await fetch(`/player/${playerId}/checkin`);
+      const data = await res.json();
+      if (data.round_number > lastRound) {
+        console.log("🕒 Round has advanced. Reloading...");
+        location.reload();
+      }
+    } catch (e) {
+      console.warn("Polling failed", e);
     }
-    </script>
+  }
+
+  setInterval(checkForUpdate, POLL_INTERVAL);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      checkForUpdate();
+    }
+  });
+
+  function updateBidPreview(bid) {
+    document.getElementById("bid-value").textContent = bid;
+    const projected = currentScore + 10 + parseInt(bid);
+    document.getElementById("score-preview").textContent = projected;
+    const width = Math.min(100, (projected / 100) * 100);
+    document.getElementById("score-line").style.width = width + "%";
+  }
+
+  // Update displayed value when slider moves
+  const slider = document.getElementById('bid_slider');
+  const valueDisplay = document.getElementById('bid_value');
+  slider.addEventListener('input', () => {
+    valueDisplay.textContent = slider.value;
+  });
+</script>
 
 {% endblock %}

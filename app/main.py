@@ -104,85 +104,6 @@ async def join_post(name: str = Form(...)):
 async def zouk_rules(request: Request):
     return templates.TemplateResponse("rules.html", {"request": request})
 
-@app.get("/player/{id}", response_class=HTMLResponse)
-async def player_view(request: Request, id: int):
-    async with aiosqlite.connect(db.DB_PATH) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        # Get player details
-        player_cur = await conn.execute("SELECT id, name, game_id FROM players WHERE id = ?", (id,))
-        player = await player_cur.fetchone()
-        if not player:
-            return HTMLResponse("Player not found", status_code=404)
-
-        player_id = player["id"]
-        name = player["name"]
-        game_id = player["game_id"]
-
-        # Get current round
-        round_cur = await conn.execute("SELECT round_number FROM game WHERE id = ?", (game_id,))
-        round_data = await round_cur.fetchone()
-        round_number = round_data["round_number"] if round_data else 0
-
-        # Get total players
-        total_players_cur = await conn.execute("SELECT COUNT(*) as total FROM players WHERE game_id = ?", (game_id,))
-        total_players = (await total_players_cur.fetchone())["total"]
-
-        # Score and rank
-        score_rows = await conn.execute("""
-            SELECT player_id, SUM(points) AS total_score
-            FROM scores
-            WHERE player_id IN (SELECT id FROM players WHERE game_id = ?)
-            GROUP BY player_id
-        """, (game_id,))
-        score_data = await score_rows.fetchall()
-        scores = {row["player_id"]: row["total_score"] or 0 for row in score_data}
-        score = scores.get(id, 0)
-        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        rank = next((i + 1 for i, (pid, _) in enumerate(sorted_scores) if pid == id), total_players)
-        is_last = (rank == total_players)
-
-        # Last round bid and win
-        last_round_cur = await conn.execute("SELECT id FROM rounds WHERE game_id = ? ORDER BY round_number DESC LIMIT 1", (game_id,))
-        last_round = await last_round_cur.fetchone()
-        last_bid = last_won = None
-        if last_round:
-            score_cur = await conn.execute("SELECT bid, won FROM scores WHERE round_id = ? AND player_id = ?", (last_round["id"], id))
-            score_row = await score_cur.fetchone()
-            if score_row:
-                last_bid = score_row["bid"]
-                last_won = score_row["won"]
-
-        # Make a recommended bid and drop hints 
-        suggested_bid = suggest_bid(round_number, rank, total_players, last_bid)
-        top_score = sorted_scores[0][1] if sorted_scores else 0
-        gap = top_score - score
-        hint = None
-
-        if gap >= 20:
-            hint = "⚠️ You’re falling behind. Consider a bold move or a Zouk bid."
-        elif gap >= 10:
-            hint = "💡 A smart bid can close the gap. Stay sharp!"
-        elif suggested_bid == last_bid:
-            hint = "Try a different bid this time."
-
-        return templates.TemplateResponse("player.html", {
-            "request": request,
-            "hide_header": True,
-            "player_id": player_id,
-            "name": name,
-            "round_number": round_number,
-            "score": score,
-            "rank": rank,
-            "total_players": total_players,
-            "last_bid": last_bid,
-            "last_won": last_won,
-            "suggested_bid": suggested_bid,
-            "hint": hint,
-            "is_last": is_last
-        })
-
-
 @app.get("/host", response_class=HTMLResponse)
 async def host_panel(request: Request):
     async with aiosqlite.connect(db.DB_PATH) as conn:
@@ -311,16 +232,17 @@ async def show_bids(request: Request):
         game = await cur.fetchone()
         if not game:
             return HTMLResponse("No active game found", status_code=404)
-        
+
         if game["game_status"] == 2:
-            # Redirect to host if game is already closed
             return RedirectResponse(url="/host", status_code=302)
 
         game_id = game["id"]
 
         cur = await conn.execute("""
-            SELECT id, round_number, round_status FROM rounds 
-            WHERE game_id = ? ORDER BY round_number DESC LIMIT 1
+            SELECT id, round_number, round_status, starter_player_id 
+            FROM rounds 
+            WHERE game_id = ? 
+            ORDER BY round_number DESC LIMIT 1
         """, (game_id,))
         round_row = await cur.fetchone()
         if not round_row:
@@ -329,14 +251,47 @@ async def show_bids(request: Request):
         round_id = round_row["id"]
         round_number = round_row["round_number"]
         round_status = round_row["round_status"]
+        starter_id = round_row["starter_player_id"]
 
         cur = await conn.execute("""
             SELECT p.id, p.name, p.seat_number, s.bid, s.won 
             FROM players p
             LEFT JOIN scores s ON p.id = s.player_id AND s.round_id = ?
-            WHERE p.game_id = ? ORDER BY p.seat_number ASC
+            WHERE p.game_id = ? 
+            ORDER BY p.seat_number ASC
         """, (round_id, game_id))
-        players = await cur.fetchall()
+        players_raw = await cur.fetchall()
+
+        # Rotate players based on starter seat
+        if starter_id:
+            starter_seat = next(p["seat_number"] for p in players_raw if p["id"] == starter_id)
+            # Rotate players_raw to start from starter_seat
+            before = [p for p in players_raw if p["seat_number"] < starter_seat]
+            after = [p for p in players_raw if p["seat_number"] >= starter_seat]
+            players = after + before
+        else:
+            players = players_raw
+
+        # Check how many players have submitted bids already
+        submitted_count = sum(1 for p in players if p["bid"] is not None)
+        total_count = len(players)
+
+        # Determine if host bid form should be suppressed and wait for bids
+        waiting_bid_input = (round_status == "START" and submitted_count > 0)
+
+        # Determine current_turn_player_id
+        submitted_bids = [p for p in players if p["bid"] is not None]
+        player_count = len(players)
+        seat_order = [p["seat_number"] for p in players]
+        id_map = {p["seat_number"]: p["id"] for p in players}
+
+        if starter_id:
+            starter_seat = next(p["seat_number"] for p in players if p["id"] == starter_id)
+            current_index = (seat_order.index(starter_seat) + len(submitted_bids)) % player_count
+            current_seat = seat_order[current_index]
+            current_turn_player_id = id_map[current_seat]
+        else:
+            current_turn_player_id = None  # fallback
 
     return templates.TemplateResponse("bids.html", {
         "request": request,
@@ -345,8 +300,136 @@ async def show_bids(request: Request):
         "round_status": round_status,
         "round_id": round_id,
         "game_status": game["game_status"],
-         "current_page": "play"
+        "current_turn_player_id": current_turn_player_id,
+        "starter_player_id": starter_id,
+        "waiting_bid_input": waiting_bid_input,
+        "current_page": "play"
     })
+
+@app.get("/player/{id}", response_class=HTMLResponse)
+async def player_view(request: Request, id: int):
+    async with aiosqlite.connect(db.DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        # Get current players in game
+        players_cur = await conn.execute("SELECT id, name, game_id, seat_number FROM players")
+        player_rows = await players_cur.fetchall()
+        total_players = len(player_rows)
+
+        # Get player details
+        player_cur = await conn.execute("SELECT id, name, game_id, seat_number FROM players WHERE id = ?", (id,))
+        player = await player_cur.fetchone()
+        if not player:
+            return HTMLResponse("Player not found", status_code=404)
+
+        player_id = player["id"]
+        name = player["name"]
+        game_id = player["game_id"]
+
+        # Get current round + starter
+        round_cur = await conn.execute("""
+            SELECT id, round_number, starter_player_id 
+            FROM rounds 
+            WHERE game_id = ? ORDER BY round_number DESC LIMIT 1
+        """, (game_id,))
+        round_row = await round_cur.fetchone()
+
+        # Handle "round not yet started" gracefully
+        if not round_row:
+            # Still show player dashboard, but with no round active
+            return templates.TemplateResponse("player.html", {
+                "request": request,
+                "hide_header": True,
+                "player_id": player_id,
+                "name": name,
+                "round_number": 1,
+                "game_status": 0,
+                "score": 0,
+                "rank": 1,
+                "total_players": total_players,  # placeholder until full seat list is available
+                "last_bid": None,
+                "last_won": None,
+                "suggested_bid": None,
+                "hint": "⏳ Waiting for host to start the first round...",
+                "is_last": False,
+                "can_submit": False
+            })
+
+        round_id = round_row["id"]
+        round_number = round_row["round_number"]
+        starter_id = round_row["starter_player_id"]
+
+        # Get all players in seat order
+        player_rows = await conn.execute(
+            "SELECT id, seat_number FROM players WHERE game_id = ? ORDER BY seat_number", (game_id,)
+        )
+        seat_order = await player_rows.fetchall()
+        total_players = len(seat_order)
+
+        # Determine current bid turn
+        bids_cur = await conn.execute(
+            "SELECT player_id FROM scores WHERE round_id = ?", (round_id,)
+        )
+        already_bid = {row["player_id"] for row in await bids_cur.fetchall()}
+
+        # Rotate seat order so starter is first
+        ids = [p["id"] for p in seat_order]
+        while ids[0] != starter_id:
+            ids.append(ids.pop(0))
+
+        current_bidder_id = next((pid for pid in ids if pid not in already_bid), None)
+        can_submit = (player_id == current_bidder_id)
+
+        # Score and rank
+        score_rows = await conn.execute("""
+            SELECT player_id, SUM(points) AS total_score
+            FROM scores
+            WHERE player_id IN (SELECT id FROM players WHERE game_id = ?)
+            GROUP BY player_id
+        """, (game_id,))
+        score_data = await score_rows.fetchall()
+        scores = {row["player_id"]: row["total_score"] or 0 for row in score_data}
+        score = scores.get(id, 0)
+        sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        rank = next((i + 1 for i, (pid, _) in enumerate(sorted_scores) if pid == id), total_players)
+        is_last = (rank == total_players)
+
+        # Last round bid and win
+        last_bid = last_won = None
+        score_cur = await conn.execute("SELECT bid, won FROM scores WHERE round_id = ? AND player_id = ?", (round_id, id))
+        score_row = await score_cur.fetchone()
+        if score_row:
+            last_bid = score_row["bid"]
+            last_won = score_row["won"]
+
+        # Suggested bid and hint
+        suggested_bid = suggest_bid(round_number, rank, total_players, last_bid)
+        top_score = sorted_scores[0][1] if sorted_scores else 0
+        gap = top_score - score
+        hint = None
+        if gap >= 20:
+            hint = "⚠️ You’re falling behind. Consider a bold move or a Zouk bid."
+        elif gap >= 10:
+            hint = "💡 A smart bid can close the gap. Stay sharp!"
+        elif suggested_bid == last_bid:
+            hint = "Try a different bid this time."
+
+        return templates.TemplateResponse("player.html", {
+            "request": request,
+            "hide_header": True,
+            "player_id": player_id,
+            "name": name,
+            "round_number": round_number,
+            "score": score,
+            "rank": rank,
+            "total_players": total_players,
+            "last_bid": last_bid,
+            "last_won": last_won,
+            "suggested_bid": suggested_bid,
+            "hint": hint,
+            "is_last": is_last,
+            "can_submit": can_submit
+        })
 
 @app.post("/bids")
 async def submit_bids_or_wins(request: Request):
@@ -438,14 +521,31 @@ async def submit_bids_or_wins(request: Request):
     return RedirectResponse(url="/bids", status_code=302)
 
 @app.post("/player/bid")
-async def player_bid(player_id: int = Form(...), round_id: int = Form(...), bid: int = Form(...)):
+async def submit_player_bid(request: Request, player_id: int = Form(...), round_id: int = Form(...), bid: int = Form(...)):
     async with aiosqlite.connect(db.DB_PATH) as conn:
-        await conn.execute("""
-            UPDATE scores
-            SET bid = ?
-            WHERE player_id = ? AND round_id = ?
-        """, (bid, player_id, round_id))
+        conn.row_factory = aiosqlite.Row
+
+        # Check if a score row already exists for this player + round
+        cur = await conn.execute("""
+            SELECT id FROM scores WHERE player_id = ? AND round_id = ?
+        """, (player_id, round_id))
+        existing = await cur.fetchone()
+
+        if existing:
+            await conn.execute("""
+                UPDATE scores SET bid = ? WHERE id = ?
+            """, (bid, existing["id"]))
+        else:
+            await conn.execute("""
+                INSERT INTO scores (round_id, player_id, bid, won, points)
+                VALUES (?, ?, ?, 0, 0)
+            """, (round_id, player_id, bid))
+
         await conn.commit()
+
+        # Notify all clients via WebSocket
+        await safe_broadcast_scores_update()
+
     return RedirectResponse(url=f"/player/{player_id}", status_code=302)
 
 
