@@ -23,7 +23,7 @@
             {% for player in players %}
             <tr
                 class="text-center {% if player.id == current_turn_player_id %}bg-yellow-100 animate-pulse ring-2 ring-yellow-400{% else %}opacity-60{% endif %}">
-                <td class="border px-4 py-2">x{{ player.name }}</td>
+                <td class="border px-4 py-2">{{ player.name }}</td>
                 <td class="border px-4 py-2">
                     {% if round_status == "START" %}
                     {% if waiting_bid_input %}
